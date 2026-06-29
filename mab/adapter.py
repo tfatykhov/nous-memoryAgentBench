@@ -38,6 +38,19 @@ class IngestStats:
     notes: list[str] = field(default_factory=list)
 
 
+@dataclass
+class AnswerResult:
+    """One answer turn: text + token usage + what nous recalled (debug block)."""
+
+    text: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+    recalled_fact_ids: list[str] = field(default_factory=list)
+    recalled_episode_ids: list[str] = field(default_factory=list)
+    recalled_decision_ids: list[str] = field(default_factory=list)
+    recalled_procedure_ids: list[str] = field(default_factory=list)
+
+
 def chunk_context(instance: MabInstance, chunk_chars: int, max_chunks: int) -> tuple[list[str], int]:
     """Return (chunks, n_truncated). Prefer MAB's pre-chunked turns when present."""
     if instance.haystack_turns:
@@ -193,8 +206,22 @@ class NousMemoryMethod:
         logger.warning("sleep settle timed out after %ss", self._s.sleep_settle_timeout_s)
         return False
 
-    async def answer(self, prompt: str) -> str:
-        """Ask one question in a fresh session (no residual activation leak)."""
+    async def answer(self, prompt: str) -> AnswerResult:
+        """Ask one question in a fresh session (no residual activation leak).
+
+        Uses debug=true to capture token usage and the IDs nous recalled, which
+        feed cost accounting and failure attribution.
+        """
         session_id = f"ask-{uuid.uuid4().hex}"
-        resp = await self._post_chat(prompt, session_id, debug=False)
-        return resp.get("response", "")
+        resp = await self._post_chat(prompt, session_id, debug=True)
+        usage = resp.get("usage", {}) or {}
+        dbg = resp.get("debug", {}) or {}
+        return AnswerResult(
+            text=resp.get("response", ""),
+            input_tokens=int(usage.get("input_tokens", 0) or 0),
+            output_tokens=int(usage.get("output_tokens", 0) or 0),
+            recalled_fact_ids=list(dbg.get("recalled_fact_ids") or []),
+            recalled_episode_ids=list(dbg.get("recalled_episode_ids") or []),
+            recalled_decision_ids=list(dbg.get("recalled_decision_ids") or []),
+            recalled_procedure_ids=list(dbg.get("recalled_procedure_ids") or []),
+        )

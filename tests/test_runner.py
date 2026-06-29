@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from mab import runner
-from mab.adapter import IngestStats
+from mab.adapter import AnswerResult, IngestStats
 from mab.config import HarnessSettings, PRESETS
 from mab.datasets import Competency, MabInstance, Question
 
@@ -50,7 +50,7 @@ async def test_run_config_launches_one_server_per_instance(monkeypatch):
             return True
 
         async def answer(self, prompt):
-            return "a"  # always correct (gold is "a")
+            return AnswerResult(text="a", input_tokens=2, output_tokens=1)  # gold is "a"
 
     monkeypatch.setattr(runner, "NousInstance", FakeInstance)
     monkeypatch.setattr(runner, "NousMemoryMethod", FakeMethod)

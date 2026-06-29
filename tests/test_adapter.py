@@ -6,7 +6,7 @@ import httpx
 import pytest
 import respx
 
-from mab.adapter import NousMemoryMethod
+from mab.adapter import AnswerResult, NousMemoryMethod
 from mab.config import HarnessSettings
 
 BASE = "http://test"
@@ -28,6 +28,28 @@ def _stats_payload(total_sleeps, sleeping=False):
 
 def _recent(*types):
     return {"events": [{"type": t} for t in types], "source": "memory", "count": len(types)}
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_answer_captures_tokens_and_recalled_ids():
+    respx.post(f"{BASE}/chat").mock(return_value=httpx.Response(200, json={
+        "response": "It is France.",
+        "session_id": "ask-1",
+        "usage": {"input_tokens": 1200, "output_tokens": 8},
+        "debug": {"recalled_fact_ids": ["f1", "f2"], "recalled_episode_ids": ["e1"]},
+    }))
+    async with httpx.AsyncClient() as client:
+        m = NousMemoryMethod(client, BASE, _fast_settings())
+        res = await m.answer("Where is Normandy?")
+    assert isinstance(res, AnswerResult)
+    assert res.text == "It is France."
+    assert (res.input_tokens, res.output_tokens) == (1200, 8)
+    assert res.recalled_fact_ids == ["f1", "f2"]
+    assert res.recalled_episode_ids == ["e1"]
+    # request used debug=true so the debug block is populated
+    sent = respx.calls.last.request
+    assert b'"debug": true' in sent.content or b'"debug":true' in sent.content
 
 
 @pytest.mark.asyncio

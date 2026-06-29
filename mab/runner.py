@@ -35,6 +35,13 @@ class QuestionResult:
     metric: str
     correct: bool
     error: str | None = None
+    answer_input_tokens: int = 0
+    answer_output_tokens: int = 0
+    recalled_fact_ids: list[str] = field(default_factory=list)
+    recalled_episode_ids: list[str] = field(default_factory=list)
+    # Failure attribution (Phase 0): success | synthesis_error | retrieval_miss
+    # | write_loss | None (unknown / diagnostics disabled).
+    attribution: str | None = None
 
 
 @dataclass
@@ -61,12 +68,13 @@ async def _run_instance(
     await method.consolidate()
     for q in inst.questions:
         grader = get_grader(q.metric)
+        ans = None
         try:
-            answer = await method.answer(q.prompt)
-            correct = grader.grade(answer, q.gold_answers).correct
+            ans = await method.answer(q.prompt)
+            correct = grader.grade(ans.text, q.gold_answers).correct
             err = None
         except Exception as exc:  # answer failed: record, do not zero-score silently
-            answer, correct, err = "", False, f"{type(exc).__name__}: {exc}"
+            correct, err = False, f"{type(exc).__name__}: {exc}"
             logger.warning("answer failed for %s/%s: %s", inst.instance_id, q.qa_pair_id, err)
         cfg_result.question_results.append(
             QuestionResult(
@@ -75,11 +83,15 @@ async def _run_instance(
                 instance_id=inst.instance_id,
                 qa_pair_id=q.qa_pair_id,
                 prompt=q.prompt,
-                answer=answer,
+                answer=ans.text if ans else "",
                 golds=q.gold_answers,
                 metric=q.metric,
                 correct=correct,
                 error=err,
+                answer_input_tokens=ans.input_tokens if ans else 0,
+                answer_output_tokens=ans.output_tokens if ans else 0,
+                recalled_fact_ids=ans.recalled_fact_ids if ans else [],
+                recalled_episode_ids=ans.recalled_episode_ids if ans else [],
             )
         )
 
