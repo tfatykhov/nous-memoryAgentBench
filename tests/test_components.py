@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from mab.adapter import chunk_context
-from mab.config import HarnessSettings, resolve_configs
+from mab.config import Config, HarnessSettings, config_from_env_file, resolve_configs
 from mab.datasets import Competency, MabInstance, Question
 from mab.instance import NousServerError, _build_env, preflight_keys
 from mab.report import render_markdown, summarize
@@ -22,6 +22,45 @@ def test_resolve_known_configs():
 def test_resolve_unknown_config_raises():
     with pytest.raises(ValueError, match="Unknown config preset"):
         resolve_configs(["baseline", "does_not_exist"])
+
+
+def test_config_from_env_file_keeps_only_nous_knobs(tmp_path):
+    f = tmp_path / "prod.env"
+    f.write_text(
+        "# comment\n"
+        'NOUS_EPISODE_CHUNKS_ENABLED="true"\n'
+        "NOUS_RRF_K=30\n"
+        "NOUS_PORT=8383\n"          # reserved -> excluded
+        "NOUS_AGENT_ID=nous-default\n"  # reserved -> excluded
+        "OPENAI_API_KEY=sekret\n"   # non-NOUS -> excluded (no secret leak)
+        "\n",
+        encoding="utf-8",
+    )
+    cfg = config_from_env_file(f)
+    assert cfg.name == "prod"
+    assert cfg.env["NOUS_EPISODE_CHUNKS_ENABLED"] == "true"  # quotes stripped
+    assert cfg.env["NOUS_RRF_K"] == "30"
+    assert "NOUS_PORT" not in cfg.env
+    assert "NOUS_AGENT_ID" not in cfg.env
+    assert "OPENAI_API_KEY" not in cfg.env
+
+
+def test_build_env_harness_vars_beat_config(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "y")
+    repo = tmp_path / "nous"
+    repo.mkdir()
+    # A malicious/naive config trying to override isolation vars.
+    cfg = Config(name="evil", env={
+        "NOUS_PORT": "8383", "NOUS_AGENT_ID": "nous-default",
+        "DB_NAME": "nous_prod", "NOUS_EPISODE_CHUNKS_ENABLED": "true",
+    })
+    s = HarnessSettings(nous_repo=repo)
+    env = _build_env(s, cfg, port=9000, agent_id="mab-unique-1")
+    assert env["NOUS_PORT"] == "9000"            # harness wins
+    assert env["NOUS_AGENT_ID"] == "mab-unique-1"  # isolation preserved
+    assert env["DB_NAME"] == s.db_name           # eval DB, not config's nous_prod
+    assert env["NOUS_EPISODE_CHUNKS_ENABLED"] == "true"  # benign override applies
 
 
 # --- chunker ----------------------------------------------------------------

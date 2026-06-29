@@ -13,7 +13,7 @@ import asyncio
 import logging
 import sys
 
-from mab.config import PRESETS, HarnessSettings, resolve_configs
+from mab.config import PRESETS, HarnessSettings, config_from_env_file, resolve_configs
 from mab.datasets import Competency, load_competency
 from mab.report import write_reports
 from mab.runner import run_matrix
@@ -44,7 +44,12 @@ def cmd_run(args: argparse.Namespace) -> int:
     settings = _settings_with_overrides(args)
     competency = Competency(args.competency)
     sources = args.sources.split(",") if args.sources else None
-    configs = resolve_configs(args.configs.split(","))
+    configs = resolve_configs([c for c in args.configs.split(",") if c]) if args.configs else []
+    for path in args.config_env_file or []:
+        configs.append(config_from_env_file(path))
+    if not configs:
+        print("No configs: pass --configs and/or --config-env-file.", file=sys.stderr)
+        return 2
 
     instances = load_competency(
         competency,
@@ -52,6 +57,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         max_context_chars=settings.max_context_chars,
         max_questions_per_instance=settings.max_questions_per_instance,
     )
+    if args.max_instances is not None:
+        instances = instances[: args.max_instances]
     if not instances:
         print("No instances matched the filters.", file=sys.stderr)
         return 2
@@ -108,11 +115,16 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--competency", default="accurate_retrieval",
                    choices=[c.value for c in Competency])
     r.add_argument("--configs", default="baseline,episode_chunks_on",
-                   help="comma-separated preset names")
+                   help="comma-separated preset names (see `mab presets`)")
+    r.add_argument("--config-env-file", action="append", default=None,
+                   help="path to a .env-style file of NOUS_* settings to run as a config "
+                        "(repeatable; e.g. a captured prod config)")
     r.add_argument("--sources", default=None, help="comma-separated source filter")
     r.add_argument("--max-context-chars", type=int, default=None)
     r.add_argument("--max-questions", type=int, default=None)
     r.add_argument("--max-ingest-chunks", type=int, default=None)
+    r.add_argument("--max-instances", type=int, default=None,
+                   help="cap number of MAB instances (cost control)")
     r.add_argument("--report-dir", default=None)
     r.add_argument("--dry-run", action="store_true", help="print the plan and exit")
     r.set_defaults(func=cmd_run)

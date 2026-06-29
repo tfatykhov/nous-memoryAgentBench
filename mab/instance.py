@@ -65,20 +65,21 @@ def _build_env(settings: HarnessSettings, config: Config, port: int, agent_id: s
     # .env too, but preflight must see them). setdefault => shell env wins.
     for key, value in _read_env_file_keys(settings.nous_repo.resolve()).items():
         env.setdefault(key, value)
+    # Per-config NOUS_* overrides applied FIRST so the harness-controlled vars
+    # below always win (a prod env file may carry NOUS_PORT/NOUS_AGENT_ID/DB_*
+    # that would otherwise clobber free-port + unique-agent-id isolation).
+    env.update(config.env)
     # nous reads UNPREFIXED DB_* (validation_alias beats the NOUS_ prefix).
     env["DB_HOST"] = settings.db_host
     env["DB_PORT"] = str(settings.db_port)
     env["DB_USER"] = settings.db_user
     env["DB_PASSWORD"] = settings.db_password
     env["DB_NAME"] = settings.db_name
-    # Server binding + isolation.
+    # Server binding + isolation — harness-owned, never overridable by a config.
     env["NOUS_HOST"] = "127.0.0.1"
     env["NOUS_PORT"] = str(port)
     env["NOUS_AGENT_ID"] = agent_id
-    # Low idle backstop; DELETE /chat/{id} is the primary session-end trigger.
     env["NOUS_SESSION_TIMEOUT"] = str(settings.session_timeout_backstop)
-    # Per-config NOUS_* overrides win.
-    env.update(config.env)
     return env
 
 

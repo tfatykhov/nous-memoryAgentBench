@@ -109,6 +109,32 @@ PRESETS: dict[str, Config] = {
 }
 
 
+# Harness-owned vars that a config env file must never set (isolation/infra).
+_RESERVED_ENV = {"NOUS_HOST", "NOUS_PORT", "NOUS_AGENT_ID", "NOUS_SESSION_TIMEOUT"}
+
+
+def config_from_env_file(path: str | Path, name: str | None = None) -> Config:
+    """Build a Config from a `.env`-style file, keeping only NOUS_* memory knobs.
+
+    Skips reserved isolation vars (NOUS_HOST/PORT/AGENT_ID/SESSION_TIMEOUT) and
+    multi-line/quoted-with-newline values. Intended for capturing a deployment's
+    memory settings (e.g. prod) without its secrets/infra — curate the file so it
+    contains only the behavior knobs you want to benchmark.
+    """
+    p = Path(path)
+    env: dict[str, str] = {}
+    for raw in p.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if not key.startswith("NOUS_") or key in _RESERVED_ENV:
+            continue
+        env[key] = value.strip().strip('"').strip("'")
+    return Config(name=name or p.stem, env=env, description=f"loaded from {p.name}")
+
+
 def resolve_configs(names: list[str]) -> list[Config]:
     """Map preset names to Config objects, erroring on unknown names."""
     unknown = [n for n in names if n not in PRESETS]
