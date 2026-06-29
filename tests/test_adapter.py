@@ -143,3 +143,7 @@ async def test_ingest_sends_chunks_and_deletes_session():
     assert stats.chunks_sent == 3  # 250 chars / 100 -> 3 chunks
     assert stats.input_tokens == 9  # 3 chunks * 3 tokens
     assert routes["delete"].called
+    # session id derives from instance_id "s#0"; '#' MUST be percent-encoded in
+    # the DELETE path, else the server sees a truncated session and never closes it.
+    deleted_path = str(routes["delete"].calls.last.request.url)
+    assert "%23" in deleted_path and "#" not in deleted_path.split("/chat/")[1]

@@ -18,6 +18,7 @@ import asyncio
 import logging
 import time
 import uuid
+from urllib.parse import quote
 from dataclasses import dataclass, field
 
 import httpx
@@ -79,7 +80,13 @@ class NousMemoryMethod:
         return r.json()
 
     async def _delete_session(self, session_id: str) -> None:
-        r = await self._client.delete(f"{self._base}/chat/{session_id}", timeout=60.0)
+        # URL-encode the path segment: session_ids derive from instance_id which
+        # contains '#' (e.g. "factconsolidation_mh_6k#3"); an unencoded '#' is a
+        # URL fragment, so the server would receive a TRUNCATED session id, no-op
+        # "end" a nonexistent session (200 OK), and the real ingest session would
+        # never close -> never summarize -> nothing reaches recall-accessible memory.
+        encoded = quote(session_id, safe="")
+        r = await self._client.delete(f"{self._base}/chat/{encoded}", timeout=60.0)
         # tolerate already-gone sessions
         if r.status_code not in (200, 404):
             r.raise_for_status()
