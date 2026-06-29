@@ -170,3 +170,33 @@ def test_markdown_has_delta_and_note():
     md = render_markdown(_report())
     assert "NOT comparable" in md
     assert "+50.0 pp" in md  # episode_chunks_on 1.0 vs baseline 0.5
+
+
+def test_report_surfaces_attribution_cost_and_provenance():
+    from mab.report import render_json
+    from mab.config import PRESETS
+
+    qrs = [
+        _qr("baseline", True),
+        _qr("baseline", False),  # will be tagged write_loss below
+    ]
+    qrs[0].attribution = "success"
+    qrs[0].answer_input_tokens, qrs[0].answer_output_tokens = 1000, 20
+    qrs[1].attribution = "write_loss"
+    qrs[1].prompt = "q2"  # distinct question -> distinct manifest entry
+    cr = ConfigResult(config=PRESETS["baseline"], question_results=qrs)
+    rep = RunReport(
+        competency="accurate_retrieval", config_results=[cr],
+        settings=HarnessSettings(usd_per_mtok_input=15.0, usd_per_mtok_output=75.0),
+    )
+    j = render_json(rep, metadata={"git_sha": "abc123", "created_at": "T"})
+    cfg = j["configs"]["baseline"]
+    assert cfg["attribution"] == {"success": 1, "write_loss": 1}
+    assert cfg["foreground_input_tokens"] == 1000  # answer tokens (no ingest in fixture)
+    assert cfg["est_usd_foreground"] is not None    # rates set -> estimate present
+    assert j["metadata"]["git_sha"] == "abc123"
+    assert len(j["sample_manifest"]) == 2           # two distinct questions
+
+    md = render_markdown(rep)
+    assert "Failure attribution" in md
+    assert "background" in md.lower()               # cost caveat present
