@@ -2,20 +2,29 @@
 
 ## 1. Provide an isolated, migrated eval database
 
-The nous server verifies the schema exists but does not create it, so point the
-harness at a **migrated** Postgres+pgvector DB that is NOT your dev/prod nous DB.
-The nous repo ships one via its eval profile:
+The nous server verifies its schemas exist (it does **not** create them) and then
+applies `sql/migrations/*` itself on startup. So provision a **fresh** Postgres+
+pgvector DB that is NOT your dev/prod nous DB, apply `sql/init.sql`, and let nous
+migrate the rest. A pre-existing populated eval DB can fail startup if its legacy
+data violates a newer migration's constraints — use a fresh DB.
+
+Bring up a pgvector server on 5433 (the nous eval container, e.g.
+`nous-eval-scratch`, or `docker-compose --profile eval`), then:
 
 ```bash
-# in the nous checkout
-docker-compose --profile eval up -d nous-eval-db   # 127.0.0.1:5433, db nous_eval
+# creates an empty DB + applies init.sql; nous migrates the rest on first boot
+scripts/provision_eval_db.sh nous_mab nous-eval-scratch ../nous
+export MAB_DB_NAME=nous_mab
 ```
 
-Override connection details with `MAB_DB_HOST/PORT/USER/PASSWORD/NAME` if needed
-(defaults: `127.0.0.1:5433`, user `nous`, password `nous_eval`, db `nous_eval`).
+Connection defaults: `127.0.0.1:5433`, user `nous`, password `nous_eval`, db
+`nous_eval_scratch`. Override with `MAB_DB_HOST/PORT/USER/PASSWORD/NAME`.
 
-> Each run uses a unique `NOUS_AGENT_ID`, so runs are isolated within one DB and
-> never collide. `mab.wipe.wipe_agent` is optional housekeeping.
+> Each MAB instance run uses a unique `NOUS_AGENT_ID`, so instances are isolated
+> within one DB and never collide. `mab.wipe.wipe_agent` is optional housekeeping.
+>
+> **Verified:** the M0 smoke test passes end-to-end against a DB provisioned this
+> way (launch → ingest → session-end → consolidation → recall → grade).
 
 ## 2. Point the harness at a runnable nous
 
