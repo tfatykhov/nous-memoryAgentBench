@@ -6,6 +6,7 @@ and points the server at the shared eval DB via UNPREFIXED ``DB_*`` env vars.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import os
 import socket
@@ -135,7 +136,7 @@ class NousInstance:
                         return
                 except (httpx.HTTPError, ValueError):
                     pass
-                time.sleep(self._settings.health_poll_s)
+                await asyncio.sleep(self._settings.health_poll_s)
         raise NousServerError(
             f"nous server did not become healthy within {self._settings.health_timeout_s}s. "
             f"See log: {self._log_path}\n{self._tail_log()}"

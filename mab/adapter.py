@@ -14,6 +14,7 @@ always-logged timeout. JSON shapes from /events/* are parsed defensively.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 import uuid
@@ -150,7 +151,7 @@ class NousMemoryMethod:
                 else:
                     stable = 0
                     last_facts = facts
-            time.sleep(self._s.ingest_settle_poll_s)
+            await asyncio.sleep(self._s.ingest_settle_poll_s)
         logger.warning("ingest settle timed out after %ss", self._s.ingest_settle_timeout_s)
         return False
 
@@ -175,7 +176,7 @@ class NousMemoryMethod:
                 return True
             if before_total is None and sleeping is False:
                 return True
-            time.sleep(self._s.sleep_settle_poll_s)
+            await asyncio.sleep(self._s.sleep_settle_poll_s)
         logger.warning("sleep settle timed out after %ss", self._s.sleep_settle_timeout_s)
         return False
 
