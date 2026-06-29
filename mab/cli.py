@@ -44,12 +44,13 @@ def cmd_run(args: argparse.Namespace) -> int:
     settings = _settings_with_overrides(args)
     competency = Competency(args.competency)
     sources = args.sources.split(",") if args.sources else None
-    configs = resolve_configs([c for c in args.configs.split(",") if c]) if args.configs else []
+    # Explicit --configs and/or --config-env-file; if NEITHER given, use defaults.
+    names = [c for c in args.configs.split(",") if c] if args.configs else []
+    configs = resolve_configs(names)
     for path in args.config_env_file or []:
         configs.append(config_from_env_file(path))
     if not configs:
-        print("No configs: pass --configs and/or --config-env-file.", file=sys.stderr)
-        return 2
+        configs = resolve_configs(["baseline", "episode_chunks_on"])
 
     instances = load_competency(
         competency,
@@ -114,8 +115,10 @@ def build_parser() -> argparse.ArgumentParser:
     r = sub.add_parser("run", help="run the benchmark")
     r.add_argument("--competency", default="accurate_retrieval",
                    choices=[c.value for c in Competency])
-    r.add_argument("--configs", default="baseline,episode_chunks_on",
-                   help="comma-separated preset names (see `mab presets`)")
+    r.add_argument("--configs", default=None,
+                   help="comma-separated preset names (see `mab presets`); "
+                        "defaults to baseline,episode_chunks_on only if neither "
+                        "--configs nor --config-env-file is given")
     r.add_argument("--config-env-file", action="append", default=None,
                    help="path to a .env-style file of NOUS_* settings to run as a config "
                         "(repeatable; e.g. a captured prod config)")
