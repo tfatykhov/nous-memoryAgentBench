@@ -13,6 +13,8 @@ from pathlib import Path
 
 from mab.runner import QuestionResult, RunReport
 
+_ATTR_ORDER = ["success", "stored_but_wrong", "write_loss", "unknown"]
+
 _NON_COMPARABLE_NOTE = (
     "Scores are nous-relative ('fraction of MAB questions answerable through nous's "
     "real memory pipeline'). They are NOT comparable to MemoryAgentBench published "
@@ -53,11 +55,23 @@ def _by_source(results: list[QuestionResult]) -> dict[str, Accuracy]:
 def summarize(report: RunReport) -> dict:
     """Build a plain-dict summary keyed by config name."""
     out: dict = {"competency": report.competency, "configs": {}}
+    rate_in = report.settings.usd_per_mtok_input
+    rate_out = report.settings.usd_per_mtok_output
     for cr in report.config_results:
         acc = _accuracy(cr.question_results)
         ingest_in = sum(s.input_tokens for s in cr.ingest_stats)
         ingest_out = sum(s.output_tokens for s in cr.ingest_stats)
+        answer_in = sum(r.answer_input_tokens for r in cr.question_results)
+        answer_out = sum(r.answer_output_tokens for r in cr.question_results)
+        fg_in, fg_out = ingest_in + answer_in, ingest_out + answer_out
         settle_timeouts = sum(1 for s in cr.ingest_stats if not s.settled)
+        est_usd = None
+        if rate_in is not None and rate_out is not None:
+            est_usd = round(fg_in / 1e6 * rate_in + fg_out / 1e6 * rate_out, 4)
+        attr_counts: dict[str, int] = {}
+        for r in cr.question_results:
+            if r.attribution:
+                attr_counts[r.attribution] = attr_counts.get(r.attribution, 0) + 1
         out["configs"][cr.config.name] = {
             "description": cr.config.description,
             "env": cr.config.env,
@@ -66,7 +80,13 @@ def summarize(report: RunReport) -> dict:
             "n_graded": acc.n_graded,
             "n_errored": acc.n_errored,
             "n_total": acc.n_total,
+            "attribution": attr_counts,
             "settle_timeouts": settle_timeouts,
+            "answer_input_tokens": answer_in,
+            "answer_output_tokens": answer_out,
+            "foreground_input_tokens": fg_in,
+            "foreground_output_tokens": fg_out,
+            "est_usd_foreground": est_usd,
             "by_source": {
                 s: {"accuracy": round(a.accuracy, 4), "n_correct": a.n_correct, "n_graded": a.n_graded}
                 for s, a in _by_source(cr.question_results).items()
@@ -87,6 +107,10 @@ def render_markdown(report: RunReport) -> str:
         f"# MAB Harness Report — {report.competency}",
         "",
         f"> {_NON_COMPARABLE_NOTE}",
+        ">",
+        "> Token/$ figures are FOREGROUND /chat turns only; background work "
+        "(summarization, fact extraction, sleep) is not fully captured, so true "
+        "cost is higher.",
         "",
         "| Config | Accuracy | Δ vs baseline | Correct/Graded | Errored | Settle timeouts | Ingest tok (in/out) | Time |",
         "|--------|----------|---------------|----------------|---------|-----------------|---------------------|------|",
@@ -104,6 +128,19 @@ def render_markdown(report: RunReport) -> str:
             f"{c['ingest_input_tokens']}/{c['ingest_output_tokens']} | {c['duration_s']}s |{run_err}"
         )
     lines.append("")
+    # failure attribution breakdown (Phase 0)
+    if any(c["attribution"] for c in configs.values()):
+        lines.append("## Failure attribution")
+        lines.append("")
+        lines.append("`success` = correct · `write_loss` = gold never stored in memory · "
+                     "`stored_but_wrong` = gold stored but answer wrong (retrieval or synthesis).")
+        lines.append("")
+        lines.append("| Config | " + " | ".join(_ATTR_ORDER) + " |")
+        lines.append("|--------|" + "|".join(["------"] * len(_ATTR_ORDER)) + "|")
+        for name, c in configs.items():
+            cells = [str(c["attribution"].get(k, 0)) for k in _ATTR_ORDER]
+            lines.append(f"| {name} | " + " | ".join(cells) + " |")
+        lines.append("")
     # per-source breakdown
     for name, c in configs.items():
         if not c["by_source"]:
@@ -118,14 +155,39 @@ def render_markdown(report: RunReport) -> str:
     return "\n".join(lines)
 
 
-def render_json(report: RunReport) -> dict:
+def sample_manifest(report: RunReport) -> list[dict]:
+    """The pinned sample (source/instance/qa_pair/prompt), deduped across configs.
+
+    The sample is identical for every config, so future runs can be checked
+    against this manifest for comparability.
+    """
+    seen: dict[tuple, dict] = {}
+    for cr in report.config_results:
+        for r in cr.question_results:
+            key = (r.source, r.instance_id, r.qa_pair_id, r.prompt)
+            if key not in seen:
+                seen[key] = {
+                    "source": r.source, "instance_id": r.instance_id,
+                    "qa_pair_id": r.qa_pair_id, "prompt": r.prompt,
+                }
+    return list(seen.values())
+
+
+def render_json(report: RunReport, metadata: dict | None = None) -> dict:
     summary = summarize(report)
     summary["note"] = _NON_COMPARABLE_NOTE
+    summary["metadata"] = metadata or {}
+    summary["sample_manifest"] = sample_manifest(report)
     summary["per_question"] = [
         {
             "config": r.config_name, "source": r.source, "instance_id": r.instance_id,
             "qa_pair_id": r.qa_pair_id, "prompt": r.prompt, "answer": r.answer,
             "golds": r.golds, "metric": r.metric, "correct": r.correct, "error": r.error,
+            "attribution": r.attribution,
+            "recalled_fact_ids": r.recalled_fact_ids,
+            "recalled_episode_ids": r.recalled_episode_ids,
+            "answer_input_tokens": r.answer_input_tokens,
+            "answer_output_tokens": r.answer_output_tokens,
         }
         for cr in report.config_results
         for r in cr.question_results
@@ -133,7 +195,9 @@ def render_json(report: RunReport) -> dict:
     return summary
 
 
-def write_reports(report: RunReport, report_dir: Path, stamp: str) -> tuple[Path, Path]:
+def write_reports(
+    report: RunReport, report_dir: Path, stamp: str, metadata: dict | None = None
+) -> tuple[Path, Path]:
     """Write `<stamp>_<competency>.md` and `.json`; return their paths."""
     report_dir.mkdir(parents=True, exist_ok=True)
     configs = "-".join(cr.config.name for cr in report.config_results)
@@ -141,5 +205,5 @@ def write_reports(report: RunReport, report_dir: Path, stamp: str) -> tuple[Path
     md_path = report_dir / f"{base}.md"
     json_path = report_dir / f"{base}.json"
     md_path.write_text(render_markdown(report), encoding="utf-8")
-    json_path.write_text(json.dumps(render_json(report), indent=2), encoding="utf-8")
+    json_path.write_text(json.dumps(render_json(report, metadata), indent=2), encoding="utf-8")
     return md_path, json_path

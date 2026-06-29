@@ -56,7 +56,7 @@ async def test_run_config_launches_one_server_per_instance(monkeypatch):
     monkeypatch.setattr(runner, "NousMemoryMethod", FakeMethod)
 
     instances = [_inst(0), _inst(1), _inst(2)]
-    result = await runner.run_config(HarnessSettings(), PRESETS["baseline"], instances)
+    result = await runner.run_config(HarnessSettings(diagnostics_enabled=False), PRESETS["baseline"], instances)
 
     assert len(launched_agent_ids) == 3              # one server per instance
     assert len(set(launched_agent_ids)) == 3         # all agent_ids distinct
@@ -77,7 +77,7 @@ async def test_run_config_marks_instance_errored_on_server_failure(monkeypatch):
             return False
 
     monkeypatch.setattr(runner, "NousInstance", BoomInstance)
-    result = await runner.run_config(HarnessSettings(), PRESETS["baseline"], [_inst(0), _inst(1)])
+    result = await runner.run_config(HarnessSettings(diagnostics_enabled=False), PRESETS["baseline"], [_inst(0), _inst(1)])
 
     assert len(result.question_results) == 2
     assert all(r.error and not r.correct for r in result.question_results)

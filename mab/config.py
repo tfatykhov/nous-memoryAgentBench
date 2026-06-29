@@ -63,6 +63,16 @@ class HarnessSettings(BaseSettings):
     # --- output ---
     report_dir: Path = Path("reports")
 
+    # --- cost estimate (optional; tokens are always recorded precisely) ---
+    # Set these to your model's price to get a $ estimate in the report.
+    usd_per_mtok_input: float | None = None
+    usd_per_mtok_output: float | None = None
+
+    # --- failure attribution (Phase 0) ---
+    # DB-backed check of whether a gold answer was actually stored/recalled.
+    # Requires psycopg + read access to the eval DB. Disable to skip.
+    diagnostics_enabled: bool = True
+
 
 @dataclass(frozen=True)
 class Config:

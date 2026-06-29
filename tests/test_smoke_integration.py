@@ -56,7 +56,14 @@ async def test_m0_smoke_fact_survives_pipeline():
             ingest = await method.ingest(instance)
             assert ingest.chunks_sent >= 1
             await method.consolidate()
-            answer = await method.answer(_QUESTION)
+            res = await method.answer(_QUESTION)
 
-    result = get_grader("substring_exact_match").grade(answer, [_GOLD])
-    assert result.correct, f"nous did not recall the fact. answer was: {answer!r}"
+    result = get_grader("substring_exact_match").grade(res.text, [_GOLD])
+    assert result.correct, f"nous did not recall the fact. answer was: {res.text!r}"
+
+    # Failure attribution should agree: the gold is stored, so not a write_loss.
+    from mab.diagnostics import classify, gold_in_memory
+
+    ingested = gold_in_memory(settings, agent_id, [_GOLD])
+    assert ingested is True
+    assert classify(result.correct, ingested) == "success"

@@ -10,6 +10,7 @@ dependencies = [
     "pydantic-settings>=2.3", # MAB_* env-driven harness config
     "huggingface-hub>=0.24",  # download the MAB dataset parquet files
     "pyarrow>=16",            # read MAB parquet files (no full `datasets` dep needed)
+    "psycopg[binary]>=3.1",   # read-only eval-DB checks for failure attribution
 ]
 
 [project.optional-dependencies]

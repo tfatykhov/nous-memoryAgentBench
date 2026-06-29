@@ -17,6 +17,7 @@ import httpx
 from mab.adapter import IngestStats, NousMemoryMethod
 from mab.config import Config, HarnessSettings
 from mab.datasets import MabInstance
+from mab.diagnostics import DiagnosticsUnavailable, classify, gold_in_memory
 from mab.grading import get_grader
 from mab.instance import NousInstance
 
@@ -61,8 +62,15 @@ class RunReport:
 
 
 async def _run_instance(
-    method: NousMemoryMethod, config_name: str, inst: MabInstance, cfg_result: ConfigResult
-) -> None:
+    method: NousMemoryMethod,
+    config_name: str,
+    inst: MabInstance,
+    cfg_result: ConfigResult,
+    settings: HarnessSettings,
+    agent_id: str,
+    diagnostics_on: bool,
+) -> bool:
+    """Run one instance; returns whether diagnostics stayed enabled."""
     stats = await method.ingest(inst)
     cfg_result.ingest_stats.append(stats)
     await method.consolidate()
@@ -76,6 +84,16 @@ async def _run_instance(
         except Exception as exc:  # answer failed: record, do not zero-score silently
             correct, err = False, f"{type(exc).__name__}: {exc}"
             logger.warning("answer failed for %s/%s: %s", inst.instance_id, q.qa_pair_id, err)
+
+        attribution = None
+        if diagnostics_on and err is None:
+            try:
+                ingested = gold_in_memory(settings, agent_id, q.gold_answers)
+                attribution = classify(correct, ingested)
+            except DiagnosticsUnavailable as exc:
+                logger.warning("diagnostics disabled for this run: %s", exc)
+                diagnostics_on = False  # stop retrying for the rest of the run
+
         cfg_result.question_results.append(
             QuestionResult(
                 config_name=config_name,
@@ -92,8 +110,10 @@ async def _run_instance(
                 answer_output_tokens=ans.output_tokens if ans else 0,
                 recalled_fact_ids=ans.recalled_fact_ids if ans else [],
                 recalled_episode_ids=ans.recalled_episode_ids if ans else [],
+                attribution=attribution,
             )
         )
+    return diagnostics_on
 
 
 def _mark_instance_errored(result: ConfigResult, config_name: str, inst: MabInstance, exc: Exception) -> None:
@@ -119,13 +139,16 @@ async def run_config(settings: HarnessSettings, config: Config, instances: list[
     """
     result = ConfigResult(config=config)
     started = time.monotonic()
+    diagnostics_on = settings.diagnostics_enabled
     for inst in instances:
         agent_id = f"{settings.agent_id_prefix}-{config.name}-{uuid.uuid4().hex[:8]}"
         try:
             async with NousInstance(settings, config, agent_id) as running:
                 async with httpx.AsyncClient() as client:
                     method = NousMemoryMethod(client, running.base_url, settings)
-                    await _run_instance(method, config.name, inst, result)
+                    diagnostics_on = await _run_instance(
+                        method, config.name, inst, result, settings, agent_id, diagnostics_on
+                    )
         except Exception as exc:
             logger.exception("instance %s failed under %s", inst.instance_id, config.name)
             _mark_instance_errored(result, config.name, inst, exc)

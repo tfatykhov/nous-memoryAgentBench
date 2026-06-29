@@ -26,6 +26,18 @@ def _utc_stamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
+def _git_sha() -> str:
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=5
+        )
+        return out.stdout.strip() or "unknown"
+    except Exception:
+        return "unknown"
+
+
 def _settings_with_overrides(args: argparse.Namespace) -> HarnessSettings:
     s = HarnessSettings()
     overrides = {}
@@ -82,8 +94,23 @@ def cmd_run(args: argparse.Namespace) -> int:
     if args.dry_run:
         return 0
 
+    stamp = _utc_stamp()
+    metadata = {
+        "created_at": stamp,
+        "git_sha": _git_sha(),
+        "competency": competency.value,
+        "harness_settings": {
+            "db": f"{settings.db_host}:{settings.db_port}/{settings.db_name}",
+            "chunk_chars": settings.chunk_chars,
+            "max_ingest_chunks": settings.max_ingest_chunks,
+            "max_context_chars": settings.max_context_chars,
+            "max_questions_per_instance": settings.max_questions_per_instance,
+            "max_instances": args.max_instances,
+            "diagnostics_enabled": settings.diagnostics_enabled,
+        },
+    }
     report = asyncio.run(run_matrix(settings, competency.value, configs, instances))
-    md_path, json_path = write_reports(report, settings.report_dir, _utc_stamp())
+    md_path, json_path = write_reports(report, settings.report_dir, stamp, metadata)
     print(f"\nWrote:\n  {md_path}\n  {json_path}\n")
     print(md_path.read_text(encoding="utf-8"))
     return 0
