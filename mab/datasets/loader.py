@@ -47,6 +47,23 @@ def _download_parquet(competency: Competency, cache_dir: Path | None = None) -> 
     return Path(local)
 
 
+def dataset_fingerprint(competency: Competency, cache_dir: Path | None = None) -> dict:
+    """Identity of the parquet actually used (HF snapshot revision + filename).
+
+    The HF cache stores files under ``.../snapshots/<revision>/<file>``, so the
+    revision (commit) is recoverable from the resolved path. Lets two runs be
+    confirmed to use the same data.
+    """
+    path = _download_parquet(competency, cache_dir=cache_dir)
+    revision = None
+    parts = path.parts
+    if "snapshots" in parts:
+        i = parts.index("snapshots")
+        if i + 1 < len(parts):
+            revision = parts[i + 1]
+    return {"repo": HF_REPO_ID, "file": COMPETENCY_FILES[competency], "revision": revision}
+
+
 def _flatten_haystack(haystack_sessions: object) -> list[dict]:
     """Flatten MAB's deeply-nested haystack_sessions into a flat [{role, content}] list.
 

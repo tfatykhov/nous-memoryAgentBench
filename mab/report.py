@@ -68,10 +68,15 @@ def summarize(report: RunReport) -> dict:
         est_usd = None
         if rate_in is not None and rate_out is not None:
             est_usd = round(fg_in / 1e6 * rate_in + fg_out / 1e6 * rate_out, 4)
+        # Count attribution across GRADED questions; graded-but-unattributed
+        # (diagnostics off/unavailable) is counted as 'unknown' so partial
+        # coverage can't masquerade as complete.
         attr_counts: dict[str, int] = {}
         for r in cr.question_results:
-            if r.attribution:
-                attr_counts[r.attribution] = attr_counts.get(r.attribution, 0) + 1
+            if r.error is not None:
+                continue
+            label = r.attribution or "unknown"
+            attr_counts[label] = attr_counts.get(label, 0) + 1
         out["configs"][cr.config.name] = {
             "description": cr.config.description,
             "env": cr.config.env,
@@ -133,7 +138,16 @@ def render_markdown(report: RunReport) -> str:
         lines.append("## Failure attribution")
         lines.append("")
         lines.append("`success` = correct · `write_loss` = gold never stored in memory · "
-                     "`stored_but_wrong` = gold stored but answer wrong (retrieval or synthesis).")
+                     "`stored_but_wrong` = gold stored but answer wrong (retrieval or synthesis) · "
+                     "`unknown` = attribution unavailable.")
+        # Warn if attribution coverage is partial.
+        for name, c in configs.items():
+            unknown = c["attribution"].get("unknown", 0)
+            graded = c["n_graded"]
+            if unknown and graded:
+                lines.append("")
+                lines.append(f"> ⚠ {name}: attribution covered {graded - unknown}/{graded} "
+                             f"graded questions ({unknown} unknown — diagnostics off/unavailable).")
         lines.append("")
         lines.append("| Config | " + " | ".join(_ATTR_ORDER) + " |")
         lines.append("|--------|" + "|".join(["------"] * len(_ATTR_ORDER)) + "|")

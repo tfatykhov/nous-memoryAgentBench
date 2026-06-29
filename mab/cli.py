@@ -15,6 +15,7 @@ import sys
 
 from mab.config import PRESETS, HarnessSettings, config_from_env_file, resolve_configs
 from mab.datasets import Competency, load_competency
+from mab.datasets.loader import dataset_fingerprint
 from mab.report import write_reports
 from mab.runner import run_matrix
 
@@ -26,13 +27,12 @@ def _utc_stamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
-def _git_sha() -> str:
+def _git_sha(repo: str | None = None) -> str:
     import subprocess
 
+    cmd = ["git"] + (["-C", repo] if repo else []) + ["rev-parse", "HEAD"]
     try:
-        out = subprocess.run(
-            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=5
-        )
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
         return out.stdout.strip() or "unknown"
     except Exception:
         return "unknown"
@@ -97,7 +97,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     stamp = _utc_stamp()
     metadata = {
         "created_at": stamp,
-        "git_sha": _git_sha(),
+        "git_sha": _git_sha(),  # harness version
+        "nous_git_sha": _git_sha(str(settings.nous_repo)),  # agent under test
+        "dataset": dataset_fingerprint(competency),
         "competency": competency.value,
         "harness_settings": {
             "db": f"{settings.db_host}:{settings.db_port}/{settings.db_name}",
