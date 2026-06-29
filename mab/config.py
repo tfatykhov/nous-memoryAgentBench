@@ -31,7 +31,9 @@ class HarnessSettings(BaseSettings):
     db_port: int = 5433
     db_user: str = "nous"
     db_password: str = "nous_eval"
-    db_name: str = "nous_eval"
+    # Must be a MIGRATED nous DB distinct from dev/prod. The nous eval container
+    # (docker-compose --profile eval / nous-eval-scratch) provisions this schema.
+    db_name: str = "nous_eval_scratch"
 
     # --- run isolation ---
     agent_id_prefix: str = "mab-eval"

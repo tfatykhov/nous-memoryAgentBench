@@ -94,7 +94,7 @@ def test_build_env_backfills_keys_from_nous_dotenv_but_not_db(tmp_path, monkeypa
     assert env["OPENAI_API_KEY"] == "sk-from-dotenv"      # backfilled from .env
     assert env["ANTHROPIC_API_KEY"] == "ant-from-dotenv"
     assert env["DB_PORT"] == "5433"                        # harness eval DB, NOT .env's 5432
-    assert env["DB_NAME"] == "nous_eval"                   # NOT .env's "nous"
+    assert env["DB_NAME"] == "nous_eval_scratch"           # harness default, NOT .env's "nous"
     preflight_keys(env)  # should now pass
 
 

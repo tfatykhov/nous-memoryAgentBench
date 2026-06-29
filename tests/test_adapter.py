@@ -26,14 +26,35 @@ def _stats_payload(total_sleeps, sleeping=False):
         "total_sleeps": total_sleeps, "currently_sleeping": sleeping, "last_sleep_at": None}}}
 
 
+def _recent(*types):
+    return {"events": [{"type": t} for t in types], "source": "memory", "count": len(types)}
+
+
 @pytest.mark.asyncio
 @respx.mock
-async def test_consolidate_waits_for_total_sleeps_increment():
-    respx.get(f"{BASE}/events/stats").mock(side_effect=[
-        httpx.Response(200, json=_stats_payload(2)),   # before
-        httpx.Response(200, json=_stats_payload(2)),   # still running
-        httpx.Response(200, json=_stats_payload(3)),   # incremented -> done
+async def test_consolidate_detects_sleep_completed_event():
+    # Primary signal: a new sleep_completed event appears in /events/recent.
+    respx.get(f"{BASE}/events/recent").mock(side_effect=[
+        httpx.Response(200, json=_recent()),                    # before-count
+        httpx.Response(200, json=_recent()),                    # still running
+        httpx.Response(200, json=_recent("sleep_completed")),   # done
     ])
+    respx.get(f"{BASE}/events/stats").mock(return_value=httpx.Response(200, json=_stats_payload(0)))
+    respx.post(f"{BASE}/sleep/trigger").mock(return_value=httpx.Response(200, json={"status": "started"}))
+    async with httpx.AsyncClient() as client:
+        m = NousMemoryMethod(client, BASE, _fast_settings())
+        assert await m.consolidate() is True
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_consolidate_tolerates_events_stats_500():
+    # Live finding: /events/stats can 500. Completion still detected via the event.
+    respx.get(f"{BASE}/events/recent").mock(side_effect=[
+        httpx.Response(200, json=_recent()),
+        httpx.Response(200, json=_recent("sleep_completed")),
+    ])
+    respx.get(f"{BASE}/events/stats").mock(return_value=httpx.Response(500, text="Internal Server Error"))
     respx.post(f"{BASE}/sleep/trigger").mock(return_value=httpx.Response(200, json={"status": "started"}))
     async with httpx.AsyncClient() as client:
         m = NousMemoryMethod(client, BASE, _fast_settings())
@@ -43,6 +64,7 @@ async def test_consolidate_waits_for_total_sleeps_increment():
 @pytest.mark.asyncio
 @respx.mock
 async def test_consolidate_skips_when_sleep_disabled_503():
+    respx.get(f"{BASE}/events/recent").mock(return_value=httpx.Response(200, json=_recent()))
     respx.get(f"{BASE}/events/stats").mock(return_value=httpx.Response(200, json=_stats_payload(0)))
     respx.post(f"{BASE}/sleep/trigger").mock(return_value=httpx.Response(503, json={"error": "no sleep"}))
     async with httpx.AsyncClient() as client:
@@ -53,11 +75,12 @@ async def test_consolidate_skips_when_sleep_disabled_503():
 @pytest.mark.asyncio
 @respx.mock
 async def test_consolidate_times_out_returns_false():
+    respx.get(f"{BASE}/events/recent").mock(return_value=httpx.Response(200, json=_recent()))
     respx.get(f"{BASE}/events/stats").mock(return_value=httpx.Response(200, json=_stats_payload(5)))
     respx.post(f"{BASE}/sleep/trigger").mock(return_value=httpx.Response(200, json={"status": "started"}))
     async with httpx.AsyncClient() as client:
         m = NousMemoryMethod(client, BASE, _fast_settings(sleep_settle_timeout_s=0.05))
-        assert await m.consolidate() is False  # total_sleeps never increments
+        assert await m.consolidate() is False  # no sleep_completed, total_sleeps static
 
 
 @pytest.mark.asyncio

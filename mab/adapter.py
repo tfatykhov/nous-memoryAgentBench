@@ -88,10 +88,14 @@ class NousMemoryMethod:
             "currently_sleeping": sh.get("currently_sleeping"),
         }
 
-    async def _events_stats(self) -> dict:
-        r = await self._client.get(f"{self._base}/events/stats", timeout=30.0)
-        r.raise_for_status()
-        return self._sleep_stats_from(r.json() or {})
+    async def _events_stats_safe(self) -> dict:
+        """Sleep stats from /events/stats, tolerating errors (endpoint can 500)."""
+        try:
+            r = await self._client.get(f"{self._base}/events/stats", timeout=30.0)
+            r.raise_for_status()
+            return self._sleep_stats_from(r.json() or {})
+        except (httpx.HTTPError, ValueError):
+            return {"total_sleeps": None, "currently_sleeping": None}
 
     async def _count_event_type(self, event_type: str) -> int:
         """Count recent events of a type. Defensive against response shape."""
@@ -158,9 +162,16 @@ class NousMemoryMethod:
         return False
 
     async def consolidate(self) -> bool:
-        """Trigger a sleep cycle and wait for total_sleeps to increment."""
-        before = await self._events_stats()
-        before_total = before.get("total_sleeps")
+        """Trigger a sleep cycle and wait for completion.
+
+        Primary completion signal is a new ``sleep_completed`` event in
+        /events/recent (works and fires even when a cycle yields 0 new facts).
+        /events/stats ``total_sleeps`` is a tolerated secondary (that endpoint
+        can return HTTP 500 in some configs).
+        """
+        before_completed = await self._count_event_type("sleep_completed")
+        before_total = (await self._events_stats_safe()).get("total_sleeps")
+
         r = await self._client.post(f"{self._base}/sleep/trigger", timeout=30.0)
         if r.status_code == 503:
             logger.info("sleep disabled (503); skipping consolidation")
@@ -172,11 +183,11 @@ class NousMemoryMethod:
 
         deadline = time.monotonic() + self._s.sleep_settle_timeout_s
         while time.monotonic() < deadline:
-            stats = await self._events_stats()
-            total, sleeping = stats.get("total_sleeps"), stats.get("currently_sleeping")
-            if before_total is not None and total is not None and total > before_total:
+            completed = await self._count_event_type("sleep_completed")
+            if before_completed >= 0 and completed > before_completed:
                 return True
-            if before_total is None and sleeping is False:
+            total = (await self._events_stats_safe()).get("total_sleeps")
+            if before_total is not None and total is not None and total > before_total:
                 return True
             await asyncio.sleep(self._s.sleep_settle_poll_s)
         logger.warning("sleep settle timed out after %ss", self._s.sleep_settle_timeout_s)
