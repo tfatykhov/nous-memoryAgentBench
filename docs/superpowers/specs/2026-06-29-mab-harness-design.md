@@ -119,7 +119,6 @@ Centered on the levers that actually move AR (review P2-4):
 - `baseline` — nous defaults (chunks off; summarize + ≤5 facts).
 - `episode_chunks_on` — `NOUS_EPISODE_CHUNKS_ENABLED=true` (**headline**: verbatim raw-text recall).
 - `coverage_broadened` — broaden fact extraction (5 → 15 stable facts).
-- `recall_topk_high` — raise recall limit.
 - `cross_encoder_on` — `NOUS_CROSS_ENCODER_ENABLED=true` (preflight downloads bge-reranker).
 - `sleep_off` — `NOUS_SLEEP_ENABLED=false` (adapter skips consolidate via the 503 branch).
 - `model_haiku` — `NOUS_MODEL=claude-haiku-4-5-20251001` (cost/quality tradeoff).

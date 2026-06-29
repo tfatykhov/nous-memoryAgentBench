@@ -77,14 +77,16 @@ class NousMemoryMethod:
         return (r.json() or {}).get("memory", {}) or {}
 
     def _sleep_stats_from(self, payload: dict) -> dict:
-        """Defensively pull sleep_handler stats out of /events/stats."""
-        # Expected: {"component_stats": {"sleep_handler": {currently_sleeping, total_sleeps, ...}}}
-        comp = payload.get("component_stats") or payload.get("components") or {}
-        sh = comp.get("sleep_handler") or {}
-        # Fallbacks if flattened.
-        total = sh.get("total_sleeps", payload.get("total_sleeps"))
-        sleeping = sh.get("currently_sleeping", payload.get("currently_sleeping"))
-        return {"total_sleeps": total, "currently_sleeping": sleeping}
+        """Pull sleep_handler stats out of /events/stats.
+
+        nous shape: {"component_stats": {"sleep_handler": {total_sleeps,
+        currently_sleeping, last_sleep_at}}}.
+        """
+        sh = (payload.get("component_stats") or {}).get("sleep_handler") or {}
+        return {
+            "total_sleeps": sh.get("total_sleeps"),
+            "currently_sleeping": sh.get("currently_sleeping"),
+        }
 
     async def _events_stats(self) -> dict:
         r = await self._client.get(f"{self._base}/events/stats", timeout=30.0)

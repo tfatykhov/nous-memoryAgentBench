@@ -84,33 +84,39 @@ async def _run_instance(
         )
 
 
+def _mark_instance_errored(result: ConfigResult, config_name: str, inst: MabInstance, exc: Exception) -> None:
+    """Record every question of an instance as errored (never silently zero-scored)."""
+    for q in inst.questions:
+        result.question_results.append(
+            QuestionResult(
+                config_name=config_name, source=inst.source,
+                instance_id=inst.instance_id, qa_pair_id=q.qa_pair_id,
+                prompt=q.prompt, answer="", golds=q.gold_answers,
+                metric=q.metric, correct=False,
+                error=f"{type(exc).__name__}: {exc}",
+            )
+        )
+
+
 async def run_config(settings: HarnessSettings, config: Config, instances: list[MabInstance]) -> ConfigResult:
+    """Run all MAB instances for one config.
+
+    Each MAB instance gets its OWN nous server with a unique agent_id, so memory
+    is clean per instance (MAB evaluates each context independently — sharing one
+    agent_id across instances would let later questions retrieve earlier contexts).
+    """
     result = ConfigResult(config=config)
     started = time.monotonic()
-    agent_id = f"{settings.agent_id_prefix}-{config.name}-{uuid.uuid4().hex[:8]}"
-    try:
-        async with NousInstance(settings, config, agent_id) as running:
-            async with httpx.AsyncClient() as client:
-                method = NousMemoryMethod(client, running.base_url, settings)
-                for inst in instances:
-                    try:
-                        await _run_instance(method, config.name, inst, result)
-                    except Exception as exc:
-                        logger.exception("instance %s failed under %s", inst.instance_id, config.name)
-                        # mark each question of this instance errored
-                        for q in inst.questions:
-                            result.question_results.append(
-                                QuestionResult(
-                                    config_name=config.name, source=inst.source,
-                                    instance_id=inst.instance_id, qa_pair_id=q.qa_pair_id,
-                                    prompt=q.prompt, answer="", golds=q.gold_answers,
-                                    metric=q.metric, correct=False,
-                                    error=f"instance-level: {type(exc).__name__}: {exc}",
-                                )
-                            )
-    except Exception as exc:
-        result.error = f"{type(exc).__name__}: {exc}"
-        logger.exception("config %s failed to run", config.name)
+    for inst in instances:
+        agent_id = f"{settings.agent_id_prefix}-{config.name}-{uuid.uuid4().hex[:8]}"
+        try:
+            async with NousInstance(settings, config, agent_id) as running:
+                async with httpx.AsyncClient() as client:
+                    method = NousMemoryMethod(client, running.base_url, settings)
+                    await _run_instance(method, config.name, inst, result)
+        except Exception as exc:
+            logger.exception("instance %s failed under %s", inst.instance_id, config.name)
+            _mark_instance_errored(result, config.name, inst, exc)
     result.duration_s = time.monotonic() - started
     return result
 

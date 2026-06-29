@@ -57,6 +57,7 @@ def summarize(report: RunReport) -> dict:
         acc = _accuracy(cr.question_results)
         ingest_in = sum(s.input_tokens for s in cr.ingest_stats)
         ingest_out = sum(s.output_tokens for s in cr.ingest_stats)
+        settle_timeouts = sum(1 for s in cr.ingest_stats if not s.settled)
         out["configs"][cr.config.name] = {
             "description": cr.config.description,
             "env": cr.config.env,
@@ -65,6 +66,7 @@ def summarize(report: RunReport) -> dict:
             "n_graded": acc.n_graded,
             "n_errored": acc.n_errored,
             "n_total": acc.n_total,
+            "settle_timeouts": settle_timeouts,
             "by_source": {
                 s: {"accuracy": round(a.accuracy, 4), "n_correct": a.n_correct, "n_graded": a.n_graded}
                 for s, a in _by_source(cr.question_results).items()
@@ -86,17 +88,19 @@ def render_markdown(report: RunReport) -> str:
         "",
         f"> {_NON_COMPARABLE_NOTE}",
         "",
-        "| Config | Accuracy | Δ vs baseline | Correct/Graded | Errored | Ingest tok (in/out) | Time |",
-        "|--------|----------|---------------|----------------|---------|---------------------|------|",
+        "| Config | Accuracy | Δ vs baseline | Correct/Graded | Errored | Settle timeouts | Ingest tok (in/out) | Time |",
+        "|--------|----------|---------------|----------------|---------|-----------------|---------------------|------|",
     ]
     for name, c in configs.items():
         delta = ""
         if baseline is not None and name != "baseline":
             delta = f"{(c['accuracy'] - baseline) * 100:+.1f} pp"
         run_err = f" ⚠ {c['run_error']}" if c["run_error"] else ""
+        settle = c["settle_timeouts"]
+        settle_cell = f"⚠ {settle}" if settle else "0"
         lines.append(
             f"| {name} | {c['accuracy']:.3f} | {delta or '—'} | "
-            f"{c['n_correct']}/{c['n_graded']} | {c['n_errored']} | "
+            f"{c['n_correct']}/{c['n_graded']} | {c['n_errored']} | {settle_cell} | "
             f"{c['ingest_input_tokens']}/{c['ingest_output_tokens']} | {c['duration_s']}s |{run_err}"
         )
     lines.append("")

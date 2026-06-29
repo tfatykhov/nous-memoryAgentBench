@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import os
+import signal
 import socket
 import subprocess
 import sys
@@ -152,11 +153,14 @@ class NousInstance:
         proc = self._proc
         if proc is None or proc.poll() is not None:
             return
+        # Graceful first, so nous's lifespan cleanup drains the DB pool (avoids
+        # orphaned eval-DB connections across many per-instance server launches).
         with contextlib.suppress(Exception):
             if sys.platform == "win32":
-                proc.terminate()
+                # CTRL_BREAK_EVENT reaches the new process group (creationflags).
+                proc.send_signal(signal.CTRL_BREAK_EVENT)
             else:
-                proc.terminate()
+                proc.terminate()  # SIGTERM
         try:
             proc.wait(timeout=15)
         except subprocess.TimeoutExpired:
