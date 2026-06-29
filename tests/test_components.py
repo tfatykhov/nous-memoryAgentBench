@@ -74,6 +74,30 @@ def test_preflight_passes_with_both():
     preflight_keys({"OPENAI_API_KEY": "x", "ANTHROPIC_API_KEY": "y"})
 
 
+def test_build_env_backfills_keys_from_nous_dotenv_but_not_db(tmp_path, monkeypatch):
+    # nous repo with a .env holding keys + a (prod) DB pointer.
+    repo = tmp_path / "nous"
+    repo.mkdir()
+    (repo / ".env").write_text(
+        'OPENAI_API_KEY="sk-from-dotenv"\n'
+        "ANTHROPIC_API_KEY=ant-from-dotenv\n"
+        "DB_PORT=5432\nDB_NAME=nous\n",
+        encoding="utf-8",
+    )
+    for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
+        monkeypatch.delenv(k, raising=False)
+
+    from mab.config import PRESETS
+    s = HarnessSettings(nous_repo=repo)  # eval DB defaults (5433 / nous_eval)
+    env = _build_env(s, PRESETS["baseline"], port=9000, agent_id="mab-x")
+
+    assert env["OPENAI_API_KEY"] == "sk-from-dotenv"      # backfilled from .env
+    assert env["ANTHROPIC_API_KEY"] == "ant-from-dotenv"
+    assert env["DB_PORT"] == "5433"                        # harness eval DB, NOT .env's 5432
+    assert env["DB_NAME"] == "nous_eval"                   # NOT .env's "nous"
+    preflight_keys(env)  # should now pass
+
+
 # --- report -----------------------------------------------------------------
 def _qr(config, correct, source="s", error=None):
     return QuestionResult(

@@ -32,9 +32,39 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
+_API_KEY_VARS = ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+
+
+def _read_env_file_keys(repo: Path) -> dict[str, str]:
+    """Read only the API-key vars from ``repo/.env`` (never DB settings).
+
+    nous loads its own .env (env_file='.env') from cwd, so keys may live there
+    rather than in the shell. We surface them so preflight reflects what the
+    server will actually have. DB_* is intentionally NOT read here — the harness
+    sets DB_* explicitly to point at the eval DB.
+    """
+    path = repo / ".env"
+    found: dict[str, str] = {}
+    if not path.exists():
+        return found
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if key in _API_KEY_VARS:
+            found[key] = value.strip().strip('"').strip("'")
+    return found
+
+
 def _build_env(settings: HarnessSettings, config: Config, port: int, agent_id: str) -> dict[str, str]:
     """Compose the subprocess environment: inherit creds, set DB_*/NOUS_*, apply overrides."""
     env = os.environ.copy()
+    # Backfill API keys from nous/.env when absent in the shell (server loads
+    # .env too, but preflight must see them). setdefault => shell env wins.
+    for key, value in _read_env_file_keys(settings.nous_repo.resolve()).items():
+        env.setdefault(key, value)
     # nous reads UNPREFIXED DB_* (validation_alias beats the NOUS_ prefix).
     env["DB_HOST"] = settings.db_host
     env["DB_PORT"] = str(settings.db_port)
