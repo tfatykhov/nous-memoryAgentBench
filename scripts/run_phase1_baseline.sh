@@ -8,11 +8,14 @@ cd "$(dirname "$0")/.." || exit 1
 export MAB_NOUS_REPO=../nous
 export MAB_NOUS_PYTHON="$(pwd)/../nous/.venv/Scripts/python.exe"
 export MAB_DB_NAME=nous_mab
-export MAB_CHUNK_CHARS=16000
+# Pacing for opus rate limits: larger chunks (fewer turns -> less system-prompt
+# overhead -> lower total tokens) + per-turn delay + backoff retry (built in).
+export MAB_CHUNK_CHARS=32000
 export MAB_MAX_INGEST_CHUNKS=80
+export MAB_TURN_DELAY_S=10
 export MAB_HEALTH_TIMEOUT_S=300
-export MAB_INGEST_SETTLE_TIMEOUT_S=600
-export MAB_SLEEP_SETTLE_TIMEOUT_S=600
+export MAB_INGEST_SETTLE_TIMEOUT_S=900
+export MAB_SLEEP_SETTLE_TIMEOUT_S=900
 export HF_HUB_DISABLE_PROGRESS_BARS=1
 PY=./.venv/Scripts/python.exe
 CFG="--config-env-file configs/prod_memory.env --max-questions 8"
