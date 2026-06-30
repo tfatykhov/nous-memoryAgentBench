@@ -12,6 +12,15 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Default answer framing: tell nous to answer from memory and abstain rather
+# than guess. Used for BOTH the memory arm and the no-memory control arm so the
+# only difference between them is the ingested content (see control_arm_enabled).
+DEFAULT_ANSWER_INSTRUCTION = (
+    "Answer the question using only what you remember from earlier in our "
+    "conversation. If the answer is not in your memory, say you don't know "
+    "instead of guessing.\n\nQuestion: {question}"
+)
+
 
 class HarnessSettings(BaseSettings):
     """Harness-side configuration, read from ``MAB_*`` env vars."""
@@ -81,6 +90,17 @@ class HarnessSettings(BaseSettings):
     # DB-backed check of whether a gold answer was actually stored/recalled.
     # Requires psycopg + read access to the eval DB. Disable to skip.
     diagnostics_enabled: bool = True
+
+    # --- memory-lift measurement ---
+    # Answer each question on the fresh, EMPTY agent BEFORE ingest, as a
+    # no-memory control. The report then shows MEMORY-LIFT (ingested - control)
+    # instead of raw scores, which otherwise conflate the memory pipeline with
+    # the model's parametric knowledge / gold leaked into the prompt.
+    control_arm_enabled: bool = True
+    # Framing applied IDENTICALLY to both arms, so the only between-arm
+    # difference is the ingested content. '{question}' is substituted; if the
+    # template lacks it, the question is appended. Empty -> send the bare prompt.
+    answer_instruction: str = DEFAULT_ANSWER_INSTRUCTION
 
 
 @dataclass(frozen=True)

@@ -12,6 +12,7 @@ import argparse
 import asyncio
 import logging
 import sys
+from pathlib import Path
 
 from mab.config import PRESETS, HarnessSettings, config_from_env_file, resolve_configs
 from mab.datasets import Competency, load_competency
@@ -48,7 +49,8 @@ def _settings_with_overrides(args: argparse.Namespace) -> HarnessSettings:
     if args.max_ingest_chunks is not None:
         overrides["max_ingest_chunks"] = args.max_ingest_chunks
     if args.report_dir is not None:
-        overrides["report_dir"] = args.report_dir
+        # model_copy(update=) does NOT coerce, so pass a Path (settings type).
+        overrides["report_dir"] = Path(args.report_dir)
     return s.model_copy(update=overrides) if overrides else s
 
 
