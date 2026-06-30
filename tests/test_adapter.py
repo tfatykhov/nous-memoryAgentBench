@@ -16,6 +16,7 @@ def _fast_settings(**kw):
     defaults = dict(
         ingest_settle_poll_s=0.001, ingest_settle_timeout_s=2.0, ingest_quiescence_polls=2,
         sleep_settle_poll_s=0.001, sleep_settle_timeout_s=2.0,
+        retry_base_delay_s=0.001, retry_max_delay_s=0.01,
     )
     defaults.update(kw)
     return HarnessSettings(**defaults)
@@ -24,6 +25,42 @@ def _fast_settings(**kw):
 def _stats_payload(total_sleeps, sleeping=False):
     return {"component_stats": {"sleep_handler": {
         "total_sleeps": total_sleeps, "currently_sleeping": sleeping, "last_sleep_at": None}}}
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_post_chat_retries_5xx_then_succeeds():
+    # nous wraps Anthropic 429 as HTTP 500; the adapter should retry and recover.
+    respx.post(f"{BASE}/chat").mock(side_effect=[
+        httpx.Response(500, text="Internal Server Error"),
+        httpx.Response(500, text="Internal Server Error"),
+        httpx.Response(200, json={"response": "ok", "usage": {}, "debug": {}}),
+    ])
+    async with httpx.AsyncClient() as client:
+        m = NousMemoryMethod(client, BASE, _fast_settings(max_chat_retries=5))
+        res = await m.answer("q")
+    assert res.text == "ok"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_post_chat_raises_after_exhausting_retries():
+    respx.post(f"{BASE}/chat").mock(return_value=httpx.Response(500, text="boom"))
+    async with httpx.AsyncClient() as client:
+        m = NousMemoryMethod(client, BASE, _fast_settings(max_chat_retries=2))
+        with pytest.raises(httpx.HTTPStatusError):
+            await m.answer("q")
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_post_chat_does_not_retry_4xx():
+    route = respx.post(f"{BASE}/chat").mock(return_value=httpx.Response(400, text="bad request"))
+    async with httpx.AsyncClient() as client:
+        m = NousMemoryMethod(client, BASE, _fast_settings(max_chat_retries=5))
+        with pytest.raises(httpx.HTTPStatusError):
+            await m.answer("q")
+    assert route.call_count == 1  # no retries on client error
 
 
 def _recent(*types):

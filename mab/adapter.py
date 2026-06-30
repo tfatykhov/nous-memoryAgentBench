@@ -71,13 +71,40 @@ class NousMemoryMethod:
 
     # --- HTTP helpers ---------------------------------------------------
     async def _post_chat(self, message: str, session_id: str, debug: bool = False) -> dict:
-        r = await self._client.post(
-            f"{self._base}/chat",
-            json={"message": message, "session_id": session_id, "debug": debug},
-            timeout=600.0,
-        )
-        r.raise_for_status()
-        return r.json()
+        # nous returns HTTP 500 when the upstream Anthropic call hits a 429 rate
+        # limit, so retry 5xx with exponential backoff. 4xx (client) errors are
+        # not retried. Transport errors (connection drops) are also retried.
+        last_exc: Exception | None = None
+        for attempt in range(self._s.max_chat_retries + 1):
+            if self._s.turn_delay_s:
+                await asyncio.sleep(self._s.turn_delay_s)
+            try:
+                r = await self._client.post(
+                    f"{self._base}/chat",
+                    json={"message": message, "session_id": session_id, "debug": debug},
+                    timeout=600.0,
+                )
+                if r.status_code >= 500:
+                    raise httpx.HTTPStatusError(
+                        f"server {r.status_code}", request=r.request, response=r
+                    )
+                r.raise_for_status()
+                return r.json()
+            except (httpx.HTTPStatusError, httpx.TransportError) as exc:
+                # Don't retry deterministic 4xx client errors.
+                if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code < 500:
+                    raise
+                last_exc = exc
+                if attempt < self._s.max_chat_retries:
+                    delay = min(
+                        self._s.retry_base_delay_s * (2 ** attempt), self._s.retry_max_delay_s
+                    )
+                    logger.warning(
+                        "POST /chat failed (%s); retry %d/%d in %.0fs",
+                        exc, attempt + 1, self._s.max_chat_retries, delay,
+                    )
+                    await asyncio.sleep(delay)
+        raise last_exc  # exhausted retries
 
     async def _delete_session(self, session_id: str) -> None:
         # URL-encode the path segment: session_ids derive from instance_id which

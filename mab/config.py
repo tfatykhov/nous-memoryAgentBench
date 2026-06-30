@@ -53,6 +53,15 @@ class HarnessSettings(BaseSettings):
     max_context_chars: int | None = None
     max_questions_per_instance: int | None = 5
 
+    # --- rate-limit resilience / pacing ---
+    # nous wraps Anthropic 429s as HTTP 500, so retry 5xx with exponential backoff.
+    max_chat_retries: int = 6
+    retry_base_delay_s: float = 5.0
+    retry_max_delay_s: float = 90.0
+    # Optional fixed delay before each /chat turn to throttle request rate (helps
+    # leave rate-limit headroom for nous's background LLM calls).
+    turn_delay_s: float = 0.0
+
     # --- settle timeouts ---
     ingest_settle_timeout_s: float = 180.0
     ingest_settle_poll_s: float = 2.0
