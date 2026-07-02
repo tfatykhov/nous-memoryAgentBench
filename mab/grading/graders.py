@@ -51,9 +51,13 @@ _ABSTENTION_CUES = (
     "haven't discussed", "have nothing", "unable to find",
 )
 _CLAUSE_LOOKBACK = 80  # cap chars scanned back when no clause boundary is found
-# A clause ends at punctuation OR a coordinating conjunction — "... but the
-# answer is Paris" starts a new (affirmative) clause even without a comma.
-_CLAUSE_BREAK = re.compile(r"[.,;:!?]|\b(?:but|though|although|however|yet|whereas)\b")
+# A clause ends at punctuation OR a coordinating/contrastive conjunction — e.g.
+# "... but the answer is Paris" or "Belgium and I don't recall the date" each
+# start a new clause even without a comma, so a caveat joined to an affirmative
+# answer doesn't drag its abstention cue onto the gold.
+_CLAUSE_BREAK = re.compile(
+    r"[.,;:!?]|\b(?:but|and|or|nor|so|yet|though|although|however|whereas)\b"
+)
 
 
 def _clause_around(norm_answer: str, idx: int, gold_len: int, lo_floor: int) -> tuple[str, str]:

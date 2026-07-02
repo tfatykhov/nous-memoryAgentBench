@@ -53,6 +53,9 @@ def test_exact_match_is_strict(answer, golds, expected):
         ("I don't recall the date but the answer is Paris", ["Paris"], True),
         ("I can't find it though the country is Belgium", ["Belgium"], True),
         ("I don't have the year however the sport began in Italy", ["Italy"], True),
+        # affirmative + caveat joined by "and" -> gold still counts (Codex #4)
+        ("The country is Belgium and I don't recall the date.", ["Belgium"], True),
+        ("The sport began in Italy and I'm not sure of the year", ["Italy"], True),
         # gold BEFORE the cue in the same clause -> abstention (Codex #2)
         ("Italy is not in my memory.", ["Italy"], False),
         ("Paris? I do not know.", ["Paris"], False),
