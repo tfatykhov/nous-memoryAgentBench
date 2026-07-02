@@ -211,7 +211,25 @@ class NousMemoryMethod:
         return False
 
     async def consolidate(self) -> bool:
-        """Trigger a sleep cycle and wait for completion.
+        """Run ``sleep_cycles`` consolidation cycles, waiting for each to settle.
+
+        A single sleep may not create all connections: nous consolidation phases
+        (associative linking, chunk consolidation, orphan re-linking) are
+        per-cycle capped and transitive, so edges built in one cycle unlock more
+        in the next. Each cycle is an independent trigger+settle. Returns True
+        only if every cycle settled (or sleep is disabled); False if any cycle
+        times out, so the caller can flag incomplete consolidation.
+        """
+        cycles = max(1, self._s.sleep_cycles)
+        for cycle in range(cycles):
+            if cycles > 1:
+                logger.info("consolidation cycle %d/%d", cycle + 1, cycles)
+            if not await self._consolidate_once():
+                return False
+        return True
+
+    async def _consolidate_once(self) -> bool:
+        """Trigger one sleep cycle and wait for completion.
 
         Primary completion signal is a new ``sleep_completed`` event in
         /events/recent (works and fires even when a cycle yields 0 new facts).

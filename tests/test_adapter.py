@@ -144,6 +144,41 @@ async def test_consolidate_times_out_returns_false():
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_consolidate_runs_multiple_cycles():
+    # sleep_cycles=3 -> three independent trigger+settle passes (a single sleep
+    # may not create all connections). Each cycle sees one more sleep_completed.
+    def k(n):  # response with n sleep_completed events
+        return httpx.Response(200, json=_recent(*(["sleep_completed"] * n)))
+    respx.get(f"{BASE}/events/recent").mock(side_effect=[
+        k(0), k(1),   # cycle 1: before=0, poll=1 -> settle
+        k(1), k(2),   # cycle 2: before=1, poll=2 -> settle
+        k(2), k(3),   # cycle 3: before=2, poll=3 -> settle
+    ])
+    respx.get(f"{BASE}/events/stats").mock(return_value=httpx.Response(200, json=_stats_payload(0)))
+    trigger = respx.post(f"{BASE}/sleep/trigger").mock(
+        return_value=httpx.Response(200, json={"status": "started"}))
+    async with httpx.AsyncClient() as client:
+        m = NousMemoryMethod(client, BASE, _fast_settings(sleep_cycles=3))
+        assert await m.consolidate() is True
+    assert trigger.call_count == 3  # one trigger per cycle
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_consolidate_multi_cycle_stops_on_first_timeout():
+    # If a cycle never settles, stop and report incomplete (don't fire the rest).
+    respx.get(f"{BASE}/events/recent").mock(return_value=httpx.Response(200, json=_recent()))
+    respx.get(f"{BASE}/events/stats").mock(return_value=httpx.Response(200, json=_stats_payload(5)))
+    trigger = respx.post(f"{BASE}/sleep/trigger").mock(
+        return_value=httpx.Response(200, json={"status": "started"}))
+    async with httpx.AsyncClient() as client:
+        m = NousMemoryMethod(client, BASE, _fast_settings(sleep_cycles=3, sleep_settle_timeout_s=0.05))
+        assert await m.consolidate() is False
+    assert trigger.call_count == 1  # bailed after the first cycle timed out
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_settle_ingest_waits_for_summary_then_fact_quiescence():
     # episode_summarized appears on 2nd poll; facts then stable across quiescence polls.
     respx.get(f"{BASE}/events/recent").mock(side_effect=[

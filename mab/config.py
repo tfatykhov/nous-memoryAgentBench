@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Default answer framing: tell nous to answer from memory and abstain rather
@@ -80,6 +81,15 @@ class HarnessSettings(BaseSettings):
     ingest_quiescence_polls: int = 3
     sleep_settle_timeout_s: float = 300.0
     sleep_settle_poll_s: float = 2.0
+    # Number of consolidation (sleep) cycles to run per instance after ingest.
+    # nous consolidation phases (F076 associative linking, chunk consolidation,
+    # orphan re-linking) are per-cycle capped and transitive: edges built in one
+    # cycle unlock further links in the next, so a single sleep may not create
+    # all connections. Each cycle is an independent trigger+settle. Default 1
+    # preserves single-cycle behavior; raise (e.g. 3) for fuller consolidation.
+    # ge=1 so MAB_SLEEP_CYCLES=0 fails loudly instead of being silently coerced
+    # (disable sleep via NOUS_SLEEP_ENABLED=false, not by zeroing this).
+    sleep_cycles: int = Field(default=1, ge=1)
 
     # --- output ---
     report_dir: Path = Path("reports")
