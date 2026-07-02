@@ -132,6 +132,13 @@ def summarize(report: RunReport) -> dict:
             label = r.attribution or "unknown"
             attr_counts[label] = attr_counts.get(label, 0) + 1
         lift = _lift(cr.question_results)
+        # Was the control arm actually run? (vs. disabled.) A graded question
+        # whose control errored/answered means control was attempted; this lets
+        # the report distinguish "control off" from "control on but all failed".
+        control_attempted = any(
+            r.error is None and (r.control_correct is not None or r.control_error is not None)
+            for r in cr.question_results
+        )
         out["configs"][cr.config.name] = {
             "description": cr.config.description,
             "env": cr.config.env,
@@ -140,6 +147,7 @@ def summarize(report: RunReport) -> dict:
             "n_graded": acc.n_graded,
             "n_errored": acc.n_errored,
             "n_total": acc.n_total,
+            "control_attempted": control_attempted,
             "memory_accuracy_paired": round(lift.memory_accuracy, 4) if lift.n_paired else None,
             "control_accuracy": round(lift.control_accuracy, 4) if lift.n_paired else None,
             "memory_lift_pp": round(lift.lift_pp, 1) if lift.n_paired else None,
@@ -209,7 +217,11 @@ def render_markdown(report: RunReport) -> str:
                           f"truncated ({c['chunks_truncated_total']} chunks dropped) — a "
                           "never-ingested needle can look like a recall failure.")
         graded, paired = c["n_graded"], c["n_paired"]
-        if paired and graded and paired < 0.7 * graded:
+        if c["control_attempted"] and graded and paired == 0:
+            health.append(f"⚠ {name}: memory-lift UNMEASURABLE — all {graded} control "
+                          "answers failed (0 paired); the table shows raw memory accuracy "
+                          "only, with NO control baseline.")
+        elif paired and graded and paired < 0.7 * graded:
             health.append(f"⚠ {name}: memory-lift covers only {paired}/{graded} graded "
                           "questions (control errored on the rest) — lift is computed on a "
                           "partial sample.")

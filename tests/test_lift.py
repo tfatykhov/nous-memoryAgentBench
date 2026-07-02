@@ -210,6 +210,29 @@ def test_report_warns_on_low_paired_coverage():
     assert "memory-lift covers only 3/10" in render_markdown(rep)
 
 
+def test_report_warns_when_control_attempted_but_all_unpaired():
+    # Control was enabled but every control call errored -> 0 paired, memory graded.
+    # The report must flag lift as UNMEASURABLE, not silently show raw accuracy.
+    qrs = [_qr(True, None, control_error="timeout") for _ in range(4)]
+    cr = ConfigResult(config=PRESETS["baseline"], question_results=qrs)
+    rep = RunReport(competency="cr", config_results=[cr], settings=HarnessSettings())
+    c = summarize(rep)["configs"]["baseline"]
+    assert c["control_attempted"] is True and c["n_paired"] == 0
+    assert "UNMEASURABLE" in render_markdown(rep)
+
+
+def test_report_no_unmeasurable_warning_when_control_disabled():
+    # No control attempted (control disabled) -> 0 paired is expected, no caveat.
+    qrs = [QuestionResult(config_name="baseline", source="s", instance_id="s#0",
+                          qa_pair_id=None, prompt="q", answer="a", golds=["a"],
+                          metric="substring_exact_match", correct=True)]
+    cr = ConfigResult(config=PRESETS["baseline"], question_results=qrs)
+    rep = RunReport(competency="cr", config_results=[cr], settings=HarnessSettings())
+    c = summarize(rep)["configs"]["baseline"]
+    assert c["control_attempted"] is False
+    assert "UNMEASURABLE" not in render_markdown(rep)
+
+
 def test_json_includes_control_fields_and_counts_tokens():
     j = render_json(_lift_report())
     pq = j["per_question"][0]

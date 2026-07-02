@@ -49,6 +49,10 @@ def test_exact_match_is_strict(answer, golds, expected):
         ("I can't find the date, but the answer is Paris.", ["Paris"], True),
         # second, clean occurrence with NO punctuation before it still counts
         ("I don't know Italy but I recall it's Italy", ["Italy"], True),
+        # comma-less coordinating conjunction opens a clean clause (Codex #1)
+        ("I don't recall the date but the answer is Paris", ["Paris"], True),
+        ("I can't find it though the country is Belgium", ["Belgium"], True),
+        ("I don't have the year however the sport began in Italy", ["Italy"], True),
         # plain affirmative still correct (no regression)
         ("It is France.", ["France"], True),
     ],

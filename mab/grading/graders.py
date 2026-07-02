@@ -46,15 +46,18 @@ _ABSTENTION_CUES = (
     "haven't discussed", "have nothing", "unable to find",
 )
 _CLAUSE_LOOKBACK = 80  # cap chars scanned back when no clause boundary is found
+# A clause ends at punctuation OR a coordinating conjunction — "... but the
+# answer is Paris" starts a new (affirmative) clause even without a comma.
+_CLAUSE_BREAK = re.compile(r"[.,;:!?]|\b(?:but|though|although|however|yet|whereas)\b")
 
 
 def _gold_present_outside_abstention(norm_answer: str, norm_gold: str) -> bool:
     """True if `norm_gold` occurs in `norm_answer` outside an abstention clause.
 
-    For each occurrence, scan back only to the enclosing clause (last sentence/
-    clause punctuation before it, capped at ``_CLAUSE_LOOKBACK``) and reject the
-    occurrence only if that clause is led by an abstention cue. Any clean
-    occurrence makes the answer count.
+    For each occurrence, scan back only to the enclosing clause (last clause
+    break — punctuation or a coordinating conjunction — before it, capped at
+    ``_CLAUSE_LOOKBACK``) and reject the occurrence only if that clause is led by
+    an abstention cue. Any clean occurrence makes the answer count.
     """
     start = 0
     prev_end = 0
@@ -63,11 +66,13 @@ def _gold_present_outside_abstention(norm_answer: str, norm_gold: str) -> bool:
         if idx == -1:
             return False
         # Floor the scan at the end of the previous occurrence so an earlier
-        # occurrence's clause (and its cue) can't bleed into this one when no
-        # punctuation separates them.
+        # occurrence's clause (and its cue) can't bleed into this one.
         lo = max(prev_end, idx - _CLAUSE_LOOKBACK)
-        boundary = max(norm_answer.rfind(ch, lo, idx) for ch in ".,;:!?")
-        clause = norm_answer[(boundary + 1 if boundary != -1 else lo):idx]
+        window = norm_answer[lo:idx]
+        last = None
+        for last in _CLAUSE_BREAK.finditer(window):
+            pass  # keep the final break before the gold
+        clause = window[last.end():] if last else window
         if not any(cue in clause for cue in _ABSTENTION_CUES):
             return True  # a clean (non-abstaining) occurrence
         prev_end = idx + len(norm_gold)
