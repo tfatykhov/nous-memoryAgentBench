@@ -51,13 +51,41 @@ _CLAUSE_LOOKBACK = 80  # cap chars scanned back when no clause boundary is found
 _CLAUSE_BREAK = re.compile(r"[.,;:!?]|\b(?:but|though|although|however|yet|whereas)\b")
 
 
+def _clause_around(norm_answer: str, idx: int, gold_len: int, lo_floor: int) -> tuple[str, str]:
+    """Return (enclosing clause, next clause) for the gold occurrence at `idx`.
+
+    A clause is bounded by the nearest clause breaks (punctuation or a
+    coordinating conjunction) on each side, capped at ``_CLAUSE_LOOKBACK``. The
+    "next clause" is the following clause after the enclosing one — used to catch
+    an echo-then-refuse pattern ("Paris? I do not know.").
+    """
+    gold_end = idx + gold_len
+    lo = max(lo_floor, idx - _CLAUSE_LOOKBACK)
+    before = norm_answer[lo:idx]
+    last = None
+    for last in _CLAUSE_BREAK.finditer(before):
+        pass  # keep the final break before the gold
+    cstart = lo + last.end() if last else lo
+
+    after = norm_answer[gold_end:gold_end + _CLAUSE_LOOKBACK]
+    brk = _CLAUSE_BREAK.search(after)
+    clause = norm_answer[cstart:gold_end + (brk.start() if brk else len(after))]
+
+    next_clause = ""
+    if brk:
+        rest = after[brk.end():]
+        nbrk = _CLAUSE_BREAK.search(rest)
+        next_clause = rest[: nbrk.start()] if nbrk else rest
+    return clause, next_clause
+
+
 def _gold_present_outside_abstention(norm_answer: str, norm_gold: str) -> bool:
     """True if `norm_gold` occurs in `norm_answer` outside an abstention clause.
 
-    For each occurrence, scan back only to the enclosing clause (last clause
-    break — punctuation or a coordinating conjunction — before it, capped at
-    ``_CLAUSE_LOOKBACK``) and reject the occurrence only if that clause is led by
-    an abstention cue. Any clean occurrence makes the answer count.
+    For each occurrence, examine the full enclosing clause (both sides of the
+    gold). Reject the occurrence if that clause contains an abstention cue, or if
+    the clause is a bare echo of the gold ("Paris?") immediately followed by a
+    refusal clause. Any clean occurrence makes the whole answer count.
     """
     start = 0
     prev_end = 0
@@ -65,16 +93,15 @@ def _gold_present_outside_abstention(norm_answer: str, norm_gold: str) -> bool:
         idx = norm_answer.find(norm_gold, start)
         if idx == -1:
             return False
-        # Floor the scan at the end of the previous occurrence so an earlier
-        # occurrence's clause (and its cue) can't bleed into this one.
-        lo = max(prev_end, idx - _CLAUSE_LOOKBACK)
-        window = norm_answer[lo:idx]
-        last = None
-        for last in _CLAUSE_BREAK.finditer(window):
-            pass  # keep the final break before the gold
-        clause = window[last.end():] if last else window
-        if not any(cue in clause for cue in _ABSTENTION_CUES):
+        clause, next_clause = _clause_around(norm_answer, idx, len(norm_gold), prev_end)
+        clause_has_cue = any(cue in clause for cue in _ABSTENTION_CUES)
+        bare_echo = clause.strip(" ?!.,") == norm_gold and any(
+            cue in next_clause for cue in _ABSTENTION_CUES
+        )
+        if not clause_has_cue and not bare_echo:
             return True  # a clean (non-abstaining) occurrence
+        # Floor the next scan at this occurrence's end so its clause can't bleed
+        # into a later occurrence.
         prev_end = idx + len(norm_gold)
         start = idx + 1
 

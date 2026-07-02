@@ -53,6 +53,11 @@ def test_exact_match_is_strict(answer, golds, expected):
         ("I don't recall the date but the answer is Paris", ["Paris"], True),
         ("I can't find it though the country is Belgium", ["Belgium"], True),
         ("I don't have the year however the sport began in Italy", ["Italy"], True),
+        # gold BEFORE the cue in the same clause -> abstention (Codex #2)
+        ("Italy is not in my memory.", ["Italy"], False),
+        ("Paris? I do not know.", ["Paris"], False),
+        # gold asserted in a clean clause after an unrelated earlier refusal -> correct
+        ("I don't know the date. The country: Italy.", ["Italy"], True),
         # plain affirmative still correct (no regression)
         ("It is France.", ["France"], True),
     ],
