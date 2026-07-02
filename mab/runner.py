@@ -89,6 +89,26 @@ class RunReport:
     settings: HarnessSettings
 
 
+async def _run_control_arm(
+    method: NousMemoryMethod, inst: MabInstance, settings: HarnessSettings
+) -> list[AnswerResult | Exception | None]:
+    """Answer every question on a fresh EMPTY agent (no-memory control).
+
+    Runs on its OWN server/agent_id (see run_config), so control sessions can
+    never write into the measured agent's memory even if they auto-close.
+    """
+    instr = settings.answer_instruction
+    control: list[AnswerResult | Exception | None] = [None] * len(inst.questions)
+    for i, q in enumerate(inst.questions):
+        try:
+            control[i] = await method.answer(frame_prompt(instr, q.prompt))
+        except Exception as exc:
+            control[i] = exc
+            logger.warning("control answer failed for %s/%s: %s",
+                           inst.instance_id, q.qa_pair_id, exc)
+    return control
+
+
 async def _run_instance(
     method: NousMemoryMethod,
     config_name: str,
@@ -97,22 +117,14 @@ async def _run_instance(
     settings: HarnessSettings,
     agent_id: str,
     diagnostics_on: bool,
+    control: list[AnswerResult | Exception | None],
 ) -> bool:
-    """Run one instance; returns whether diagnostics stayed enabled."""
-    instr = settings.answer_instruction
+    """Run one instance's MEMORY arm; returns whether diagnostics stayed enabled.
 
-    # No-memory control arm: answer every question on the still-EMPTY agent
-    # before ingest. These ask-sessions are never closed and the server is torn
-    # down after the run, so they cannot leak content into the memory arm.
-    control: list[AnswerResult | Exception | None] = [None] * len(inst.questions)
-    if settings.control_arm_enabled:
-        for i, q in enumerate(inst.questions):
-            try:
-                control[i] = await method.answer(frame_prompt(instr, q.prompt))
-            except Exception as exc:
-                control[i] = exc
-                logger.warning("control answer failed for %s/%s: %s",
-                               inst.instance_id, q.qa_pair_id, exc)
+    `control` is the paired no-memory-control result per question (all None when
+    the control arm is disabled), produced beforehand on a separate agent.
+    """
+    instr = settings.answer_instruction
 
     # Memory arm: ingest the context, consolidate, then answer.
     stats = await method.ingest(inst)
@@ -212,18 +224,40 @@ async def run_config(settings: HarnessSettings, config: Config, instances: list[
     diagnostics_on = settings.diagnostics_enabled
     for inst in instances:
         agent_id = f"{settings.agent_id_prefix}-{config.name}-{uuid.uuid4().hex[:8]}"
+        control: list[AnswerResult | Exception | None] = [None] * len(inst.questions)
         try:
+            # No-memory control arm on a SEPARATE server/agent_id, torn down
+            # before the memory arm starts, so control sessions can never write
+            # into the measured agent's memory (fabricating lift).
+            if settings.control_arm_enabled:
+                try:
+                    control = await _run_control_on_fresh_agent(settings, config, agent_id, inst)
+                except Exception as exc:  # don't lose the memory arm over control infra
+                    logger.warning("control arm failed for %s: %s; proceeding without control",
+                                   inst.instance_id, exc)
             async with NousInstance(settings, config, agent_id) as running:
                 async with httpx.AsyncClient() as client:
                     method = NousMemoryMethod(client, running.base_url, settings)
                     diagnostics_on = await _run_instance(
-                        method, config.name, inst, result, settings, agent_id, diagnostics_on
+                        method, config.name, inst, result, settings, agent_id,
+                        diagnostics_on, control,
                     )
         except Exception as exc:
             logger.exception("instance %s failed under %s", inst.instance_id, config.name)
             _mark_instance_errored(result, config.name, inst, exc)
     result.duration_s = time.monotonic() - started
     return result
+
+
+async def _run_control_on_fresh_agent(
+    settings: HarnessSettings, config: Config, agent_id: str, inst: MabInstance
+) -> list[AnswerResult | Exception | None]:
+    """Launch a throwaway control server (distinct agent_id) and answer on it."""
+    control_agent_id = f"{agent_id}-ctl"
+    async with NousInstance(settings, config, control_agent_id) as running:
+        async with httpx.AsyncClient() as client:
+            method = NousMemoryMethod(client, running.base_url, settings)
+            return await _run_control_arm(method, inst, settings)
 
 
 async def run_matrix(

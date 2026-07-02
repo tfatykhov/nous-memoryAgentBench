@@ -62,6 +62,12 @@ def test_exact_match_is_strict(answer, golds, expected):
         # typographic (curly) apostrophe in the cue must still match (Codex #3)
         ("I don’t know anything about Italy", ["Italy"], False),
         ("Italy? I don’t know.", ["Italy"], False),
+        # listed alternatives stay under the abstention across "or"/"and" (Codex #5)
+        ("I don't know whether it is France or Belgium", ["Belgium"], False),
+        ("I can't recall if it was Italy or Spain", ["Italy"], False),
+        # "don't remember" is an abstention cue (Codex #5)
+        ("I don't remember Italy", ["Italy"], False),
+        ("I have no idea, maybe Italy", ["Italy"], False),
         # gold asserted in a clean clause after an unrelated earlier refusal -> correct
         ("I don't know the date. The country: Italy.", ["Italy"], True),
         # plain affirmative still correct (no regression)

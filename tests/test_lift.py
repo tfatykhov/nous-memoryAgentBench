@@ -8,7 +8,9 @@ from mab.adapter import AnswerResult, IngestStats
 from mab.config import HarnessSettings, PRESETS
 from mab.datasets import Competency, MabInstance, Question
 from mab.report import render_json, render_markdown, summarize
-from mab.runner import ConfigResult, QuestionResult, RunReport, _run_instance, frame_prompt
+from mab.runner import (
+    ConfigResult, QuestionResult, RunReport, _run_control_arm, _run_instance, frame_prompt,
+)
 
 
 # --- frame_prompt -----------------------------------------------------------
@@ -47,56 +49,65 @@ def _inst():
     )
 
 
-class _RecordingMethod:
-    """Answers 'paris' (gold) only AFTER ingest; before ingest answers wrong."""
+class _MemoryMethod:
+    """Answers the gold; used as the memory arm in _run_instance tests."""
 
     def __init__(self):
-        self.events: list[tuple[str, str]] = []
-        self.ingested = False
+        self.prompts: list[str] = []
 
     async def answer(self, prompt):
-        phase = "memory" if self.ingested else "control"
-        self.events.append((phase, prompt))
-        if self.ingested:
-            return AnswerResult(text="It is paris.", input_tokens=50, output_tokens=5)
-        return AnswerResult(text="I don't know.", input_tokens=30, output_tokens=3)
+        self.prompts.append(prompt)
+        return AnswerResult(text="It is paris.", input_tokens=50, output_tokens=5)
 
     async def ingest(self, inst):
-        self.ingested = True
         return IngestStats(chunks_sent=1, chunks_truncated=0)
 
     async def consolidate(self):
         return True
 
 
+class _ControlMethod:
+    """Empty-agent control: answers wrong, records the (framed) prompts it saw."""
+
+    def __init__(self):
+        self.prompts: list[str] = []
+
+    async def answer(self, prompt):
+        self.prompts.append(prompt)
+        return AnswerResult(text="I don't know.", input_tokens=30, output_tokens=3)
+
+
 @pytest.mark.asyncio
-async def test_control_runs_before_ingest_with_framed_prompt():
-    method = _RecordingMethod()
+async def test_control_arm_answers_each_question_framed():
+    ctl = _ControlMethod()
+    results = await _run_control_arm(ctl, _inst(), HarnessSettings())
+    assert len(results) == 1 and isinstance(results[0], AnswerResult)
+    # the control saw the SAME framing the memory arm uses (not the bare prompt).
+    assert "capital?" in ctl.prompts[0] and ctl.prompts[0] != "capital?"
+
+
+@pytest.mark.asyncio
+async def test_run_instance_pairs_provided_control():
+    method = _MemoryMethod()
     cr = ConfigResult(config=PRESETS["baseline"])
-    s = HarnessSettings(control_arm_enabled=True, diagnostics_enabled=False)
-    await _run_instance(method, "baseline", _inst(), cr, s, "agent", False)
+    s = HarnessSettings(diagnostics_enabled=False)
+    control = [AnswerResult(text="I don't know.", input_tokens=30, output_tokens=3)]
+    await _run_instance(method, "baseline", _inst(), cr, s, "agent", False, control)
 
-    # control answered first (empty agent), then ingest happened, then memory.
-    assert [e[0] for e in method.events] == ["control", "memory"]
-    # both arms used the SAME framed prompt (instruction applied identically).
-    assert method.events[0][1] == method.events[1][1]
-    assert "capital?" in method.events[0][1] and method.events[0][1] != "capital?"
-
+    # memory arm used the framed prompt; control was paired and graded.
+    assert "capital?" in method.prompts[0] and method.prompts[0] != "capital?"
     r = cr.question_results[0]
-    assert r.correct is True                 # memory answered the gold
-    assert r.control_correct is False        # empty control did not
+    assert r.correct is True and r.control_correct is False
     assert r.control_answer == "I don't know."
     assert r.control_input_tokens == 30 and r.control_output_tokens == 3
 
 
 @pytest.mark.asyncio
-async def test_control_arm_disabled_leaves_control_none():
-    method = _RecordingMethod()
+async def test_run_instance_control_none_when_disabled():
+    method = _MemoryMethod()
     cr = ConfigResult(config=PRESETS["baseline"])
-    s = HarnessSettings(control_arm_enabled=False, diagnostics_enabled=False)
-    await _run_instance(method, "baseline", _inst(), cr, s, "agent", False)
-
-    assert [e[0] for e in method.events] == ["memory"]  # no control turn
+    s = HarnessSettings(diagnostics_enabled=False)
+    await _run_instance(method, "baseline", _inst(), cr, s, "agent", False, [None])
     assert cr.question_results[0].control_correct is None
 
 

@@ -50,6 +50,9 @@ class HarnessSettings(BaseSettings):
     # DELETE, so this is intentionally HIGH: it must NOT auto-close the per-question
     # ask sessions mid-run (which would trigger background summarization and mutate
     # memory between questions). The whole server is torn down after the run anyway.
+    # The no-memory control arm runs on its OWN throwaway agent/server (see
+    # runner._run_control_on_fresh_agent), so its sessions can never write into the
+    # measured agent even if they auto-close during a long ingest.
     session_timeout_backstop: int = 3600
 
     # --- ingest shape & cost caps ---
