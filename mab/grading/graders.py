@@ -29,7 +29,12 @@ class GradeResult:
 
 
 def _normalize(text: str) -> str:
-    """Case-fold and collapse whitespace. Shared by both metrics."""
+    """Case-fold, unify typographic apostrophes, and collapse whitespace.
+
+    Models emit curly apostrophes (U+2019 etc.), so map them to ASCII ' before
+    matching — otherwise ASCII cue strings like "don't" miss "don't".
+    """
+    text = text.translate({0x2019: "'", 0x2018: "'", 0x02BC: "'"})
     return re.sub(r"\s+", " ", text.strip().casefold())
 
 

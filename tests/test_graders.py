@@ -56,6 +56,9 @@ def test_exact_match_is_strict(answer, golds, expected):
         # gold BEFORE the cue in the same clause -> abstention (Codex #2)
         ("Italy is not in my memory.", ["Italy"], False),
         ("Paris? I do not know.", ["Paris"], False),
+        # typographic (curly) apostrophe in the cue must still match (Codex #3)
+        ("I don’t know anything about Italy", ["Italy"], False),
+        ("Italy? I don’t know.", ["Italy"], False),
         # gold asserted in a clean clause after an unrelated earlier refusal -> correct
         ("I don't know the date. The country: Italy.", ["Italy"], True),
         # plain affirmative still correct (no regression)
