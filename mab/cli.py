@@ -12,6 +12,7 @@ import argparse
 import asyncio
 import logging
 import sys
+from pathlib import Path
 
 from mab.config import PRESETS, HarnessSettings, config_from_env_file, resolve_configs
 from mab.datasets import Competency, load_competency
@@ -48,7 +49,8 @@ def _settings_with_overrides(args: argparse.Namespace) -> HarnessSettings:
     if args.max_ingest_chunks is not None:
         overrides["max_ingest_chunks"] = args.max_ingest_chunks
     if args.report_dir is not None:
-        overrides["report_dir"] = args.report_dir
+        # model_copy(update=) does NOT coerce, so pass a Path (settings type).
+        overrides["report_dir"] = Path(args.report_dir)
     return s.model_copy(update=overrides) if overrides else s
 
 
@@ -84,12 +86,17 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
         for i in instances
     )
+    # The control arm answers every question a second time (on the empty agent
+    # before ingest), so answer turns double when it is enabled.
+    answer_turns = n_q * (2 if settings.control_arm_enabled else 1)
+    per_config = est_ingest_turns + answer_turns
+    control_note = " (incl. control arm)" if settings.control_arm_enabled else ""
     print(
         f"Plan: competency={competency.value} | configs={[c.name for c in configs]} | "
         f"instances={len(instances)} | questions={n_q}\n"
-        f"Estimated agent turns per config ~ {est_ingest_turns} ingest + {n_q} answer "
-        f"= {est_ingest_turns + n_q}; total across configs ~ "
-        f"{(est_ingest_turns + n_q) * len(configs)} (plus sleep cycles)."
+        f"Estimated agent turns per config ~ {est_ingest_turns} ingest + {answer_turns} "
+        f"answer{control_note} = {per_config}; total across configs ~ "
+        f"{per_config * len(configs)} (plus sleep cycles)."
     )
     if args.dry_run:
         return 0

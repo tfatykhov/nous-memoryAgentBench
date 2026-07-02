@@ -63,6 +63,23 @@ def test_build_env_harness_vars_beat_config(tmp_path, monkeypatch):
     assert env["NOUS_EPISODE_CHUNKS_ENABLED"] == "true"  # benign override applies
 
 
+# --- cli overrides ----------------------------------------------------------
+def test_report_dir_override_is_coerced_to_path():
+    # --report-dir arrives as a str; model_copy doesn't coerce, so the CLI must.
+    # If it stays a str, server launch + write_reports crash on .mkdir().
+    import argparse
+    from pathlib import Path as _Path
+
+    from mab.cli import _settings_with_overrides
+
+    args = argparse.Namespace(
+        max_context_chars=None, max_questions=None, max_ingest_chunks=None,
+        report_dir="reports/smoke_lift",
+    )
+    s = _settings_with_overrides(args)
+    assert isinstance(s.report_dir, _Path)
+
+
 # --- chunker ----------------------------------------------------------------
 def _inst(context="", turns=None):
     return MabInstance(

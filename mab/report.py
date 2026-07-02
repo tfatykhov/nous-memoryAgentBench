@@ -14,6 +14,7 @@ from pathlib import Path
 from mab.runner import QuestionResult, RunReport
 
 _ATTR_ORDER = ["success", "stored_but_wrong", "write_loss", "unknown"]
+_LIFT_ORDER = ["memory_win", "both_right", "both_wrong", "memory_regression"]
 
 _NON_COMPARABLE_NOTE = (
     "Scores are nous-relative ('fraction of MAB questions answerable through nous's "
@@ -45,6 +46,53 @@ def _accuracy(results: list[QuestionResult]) -> Accuracy:
     )
 
 
+@dataclass(frozen=True)
+class Lift:
+    """Memory-lift over the no-memory control, on paired questions only.
+
+    A question is *paired* when its memory answer was graded (no error) and its
+    control answer was graded (control_correct is not None). Lift is meaningless
+    without both, so unpaired questions are excluded.
+    """
+
+    n_paired: int
+    n_memory_correct: int
+    n_control_correct: int
+    buckets: dict[str, int]
+
+    @property
+    def memory_accuracy(self) -> float:
+        return self.n_memory_correct / self.n_paired if self.n_paired else 0.0
+
+    @property
+    def control_accuracy(self) -> float:
+        return self.n_control_correct / self.n_paired if self.n_paired else 0.0
+
+    @property
+    def lift_pp(self) -> float:
+        return (self.memory_accuracy - self.control_accuracy) * 100
+
+
+def _lift(results: list[QuestionResult]) -> Lift:
+    paired = [r for r in results if r.error is None and r.control_correct is not None]
+    buckets = dict.fromkeys(_LIFT_ORDER, 0)
+    for r in paired:
+        if r.correct and not r.control_correct:
+            buckets["memory_win"] += 1
+        elif r.correct and r.control_correct:
+            buckets["both_right"] += 1
+        elif not r.correct and not r.control_correct:
+            buckets["both_wrong"] += 1
+        else:  # control right, memory wrong
+            buckets["memory_regression"] += 1
+    return Lift(
+        n_paired=len(paired),
+        n_memory_correct=sum(1 for r in paired if r.correct),
+        n_control_correct=sum(1 for r in paired if r.control_correct),
+        buckets=buckets,
+    )
+
+
 def _by_source(results: list[QuestionResult]) -> dict[str, Accuracy]:
     sources: dict[str, list[QuestionResult]] = {}
     for r in results:
@@ -63,8 +111,14 @@ def summarize(report: RunReport) -> dict:
         ingest_out = sum(s.output_tokens for s in cr.ingest_stats)
         answer_in = sum(r.answer_input_tokens for r in cr.question_results)
         answer_out = sum(r.answer_output_tokens for r in cr.question_results)
-        fg_in, fg_out = ingest_in + answer_in, ingest_out + answer_out
+        control_in = sum(r.control_input_tokens for r in cr.question_results)
+        control_out = sum(r.control_output_tokens for r in cr.question_results)
+        fg_in = ingest_in + answer_in + control_in
+        fg_out = ingest_out + answer_out + control_out
         settle_timeouts = sum(1 for s in cr.ingest_stats if not s.settled)
+        consolidate_timeouts = sum(1 for ok in cr.consolidate_settled if ok is False)
+        truncated_instances = sum(1 for s in cr.ingest_stats if s.chunks_truncated)
+        chunks_truncated_total = sum(s.chunks_truncated for s in cr.ingest_stats)
         est_usd = None
         if rate_in is not None and rate_out is not None:
             est_usd = round(fg_in / 1e6 * rate_in + fg_out / 1e6 * rate_out, 4)
@@ -77,6 +131,14 @@ def summarize(report: RunReport) -> dict:
                 continue
             label = r.attribution or "unknown"
             attr_counts[label] = attr_counts.get(label, 0) + 1
+        lift = _lift(cr.question_results)
+        # Was the control arm actually run? (vs. disabled.) A graded question
+        # whose control errored/answered means control was attempted; this lets
+        # the report distinguish "control off" from "control on but all failed".
+        control_attempted = any(
+            r.error is None and (r.control_correct is not None or r.control_error is not None)
+            for r in cr.question_results
+        )
         out["configs"][cr.config.name] = {
             "description": cr.config.description,
             "env": cr.config.env,
@@ -85,8 +147,17 @@ def summarize(report: RunReport) -> dict:
             "n_graded": acc.n_graded,
             "n_errored": acc.n_errored,
             "n_total": acc.n_total,
+            "control_attempted": control_attempted,
+            "memory_accuracy_paired": round(lift.memory_accuracy, 4) if lift.n_paired else None,
+            "control_accuracy": round(lift.control_accuracy, 4) if lift.n_paired else None,
+            "memory_lift_pp": round(lift.lift_pp, 1) if lift.n_paired else None,
+            "n_paired": lift.n_paired,
+            "lift_buckets": lift.buckets if lift.n_paired else {},
             "attribution": attr_counts,
             "settle_timeouts": settle_timeouts,
+            "consolidate_timeouts": consolidate_timeouts,
+            "truncated_instances": truncated_instances,
+            "chunks_truncated_total": chunks_truncated_total,
             "answer_input_tokens": answer_in,
             "answer_output_tokens": answer_out,
             "foreground_input_tokens": fg_in,
@@ -133,6 +204,58 @@ def render_markdown(report: RunReport) -> str:
             f"{c['ingest_input_tokens']}/{c['ingest_output_tokens']} | {c['duration_s']}s |{run_err}"
         )
     lines.append("")
+    # run-health caveats: conditions that bias scores (usually downward) and that
+    # a reader must see before trusting a number.
+    health: list[str] = []
+    for name, c in configs.items():
+        if c["consolidate_timeouts"]:
+            health.append(f"⚠ {name}: {c['consolidate_timeouts']} instance(s) where sleep "
+                          "consolidation never settled — those answers may run against "
+                          "incompletely-consolidated memory (biases scores down).")
+        if c["truncated_instances"]:
+            health.append(f"⚠ {name}: {c['truncated_instances']} instance(s) had ingest "
+                          f"truncated ({c['chunks_truncated_total']} chunks dropped) — a "
+                          "never-ingested needle can look like a recall failure.")
+        graded, paired = c["n_graded"], c["n_paired"]
+        if c["control_attempted"] and graded and paired == 0:
+            health.append(f"⚠ {name}: memory-lift UNMEASURABLE — all {graded} control "
+                          "answers failed (0 paired); the table shows raw memory accuracy "
+                          "only, with NO control baseline.")
+        elif paired and graded and paired < 0.7 * graded:
+            health.append(f"⚠ {name}: memory-lift covers only {paired}/{graded} graded "
+                          "questions (control errored on the rest) — lift is computed on a "
+                          "partial sample.")
+    if health:
+        lines.append("## Run health caveats")
+        lines.append("")
+        lines.extend(health)
+        lines.append("")
+    # memory-lift over the no-memory control (the validity-honest metric)
+    if any(c["n_paired"] for c in configs.values()):
+        lines.append("## Memory lift (vs no-memory control)")
+        lines.append("")
+        lines.append("Control = the SAME question answered on the empty agent (no ingest), "
+                     "same prompt framing. **Lift = memory accuracy − control accuracy** on "
+                     "paired questions — this isolates what the *memory* contributed from what "
+                     "the model already knew / read in the prompt.")
+        lines.append("")
+        lines.append("`memory_win` = control wrong, memory right (true memory contribution) · "
+                     "`both_right` = answerable without memory (parametric/in-prompt) · "
+                     "`both_wrong` = neither · `memory_regression` = control right, memory wrong.")
+        lines.append("")
+        lines.append("| Config | Memory acc | Control acc | Lift | Paired | "
+                     + " | ".join(_LIFT_ORDER) + " |")
+        lines.append("|--------|-----------|-------------|------|--------|"
+                     + "|".join(["------"] * len(_LIFT_ORDER)) + "|")
+        for name, c in configs.items():
+            if not c["n_paired"]:
+                continue
+            cells = [str(c["lift_buckets"].get(k, 0)) for k in _LIFT_ORDER]
+            lines.append(
+                f"| {name} | {c['memory_accuracy_paired']:.3f} | {c['control_accuracy']:.3f} | "
+                f"{c['memory_lift_pp']:+.1f} pp | {c['n_paired']} | " + " | ".join(cells) + " |"
+            )
+        lines.append("")
     # failure attribution breakdown (Phase 0)
     if any(c["attribution"] for c in configs.values()):
         lines.append("## Failure attribution")
@@ -198,10 +321,15 @@ def render_json(report: RunReport, metadata: dict | None = None) -> dict:
             "qa_pair_id": r.qa_pair_id, "prompt": r.prompt, "answer": r.answer,
             "golds": r.golds, "metric": r.metric, "correct": r.correct, "error": r.error,
             "attribution": r.attribution,
+            "control_answer": r.control_answer,
+            "control_correct": r.control_correct,
+            "control_error": r.control_error,
             "recalled_fact_ids": r.recalled_fact_ids,
             "recalled_episode_ids": r.recalled_episode_ids,
             "answer_input_tokens": r.answer_input_tokens,
             "answer_output_tokens": r.answer_output_tokens,
+            "control_input_tokens": r.control_input_tokens,
+            "control_output_tokens": r.control_output_tokens,
         }
         for cr in report.config_results
         for r in cr.question_results

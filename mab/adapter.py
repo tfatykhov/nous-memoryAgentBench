@@ -192,6 +192,8 @@ class NousMemoryMethod:
             if not saw_summary:
                 cur = await self._count_event_type("episode_summarized")
                 if cur < 0:
+                    logger.warning("events endpoint unavailable; settling on "
+                                   "fact-count quiescence instead of episode_summarized")
                     saw_summary = True  # events endpoint unusable; fall back to counts
                 elif cur > baseline_summarized:
                     saw_summary = True
@@ -217,6 +219,9 @@ class NousMemoryMethod:
         can return HTTP 500 in some configs).
         """
         before_completed = await self._count_event_type("sleep_completed")
+        if before_completed < 0:
+            logger.warning("sleep_completed event signal unavailable; relying on "
+                           "total_sleeps for consolidation completion")
         before_total = (await self._events_stats_safe()).get("total_sleeps")
 
         r = await self._client.post(f"{self._base}/sleep/trigger", timeout=30.0)
