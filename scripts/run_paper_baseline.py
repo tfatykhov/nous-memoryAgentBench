@@ -58,18 +58,25 @@ async def main() -> int:
         completer = openai_completer(_openai_key(), judge_client)
         results = await run_paper_faithful(settings, config, instances, completer, results_path=results_path)
 
-    by: dict[str, list[int]] = {}
+    by: dict[str, dict] = {}
     for r in results:
-        b = by.setdefault(r.source, [0, 0, 0])
-        b[0] += 1 if r.correct else 0
-        b[1] += 1
-        b[2] += 1 if r.error else 0
+        b = by.setdefault(r.source, {"c": 0, "t": 0, "e": 0, "scores": []})
+        b["c"] += 1 if r.correct else 0
+        b["t"] += 1
+        b["e"] += 1 if r.error else 0
+        if r.score is not None:
+            b["scores"].append(r.score)
     print("", flush=True)
-    for src, (c, t, e) in by.items():
-        print(f"  {src:<32} PAPER {c}/{t} = {c / t:.3f}   errored={e}", flush=True)
-    tc = sum(v[0] for v in by.values()); tt = sum(v[1] for v in by.values())
+    for src, b in by.items():
+        if b["scores"]:  # summarization: report mean f1 (fractional), not accuracy
+            m = sum(b["scores"]) / len(b["scores"])
+            print(f"  {src:<32} PAPER mean f1 = {m:.3f}  (n={len(b['scores'])})  errored={b['e']}", flush=True)
+        else:
+            print(f"  {src:<32} PAPER {b['c']}/{b['t']} = {b['c'] / b['t']:.3f}   errored={b['e']}", flush=True)
+    binary = {s: b for s, b in by.items() if not b["scores"]}
+    tc = sum(b["c"] for b in binary.values()); tt = sum(b["t"] for b in binary.values())
     if tt:
-        print(f"\n{competency.value} paper-faithful: {tc}/{tt} = {tc / tt:.3f}", flush=True)
+        print(f"\n{competency.value} paper-faithful (binary sources): {tc}/{tt} = {tc / tt:.3f}", flush=True)
     return 0
 
 

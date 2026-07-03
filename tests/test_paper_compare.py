@@ -299,6 +299,33 @@ def test_persist_appends_jsonl_per_instance(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_run_instance_paper_scores_summarization_source():
+    from mab.paper_run import run_instance_paper
+    inst = MabInstance(
+        competency=Competency.LONG_RANGE_UNDERSTANDING, source="infbench_sum_eng_shots2",
+        instance_id="infbench_sum_eng_shots2#0", context="book...",
+        questions=[Question(prompt="summarize the book", gold_answers=["Expert summary."],
+                            metric="exact_match")],
+        keypoints=[f"kp{i}" for i in range(8)],
+    )
+    method = _IngestMethod(reply="A generated book summary.")
+    # judge: fluency=1, recall=4/8=0.5, precision=3/6=0.5 -> f1 = 1*2*0.25/1 = 0.5
+    replies = ['{"fluency": 1}', '{"recall": 4}', '{"precision": 3, "sentence_count": 6}']
+    calls = {"i": 0}
+
+    async def comp(prompt, model):
+        r = replies[calls["i"]]; calls["i"] += 1
+        return r
+
+    results = await run_instance_paper(method, inst, comp)
+    assert method.calls == ["ingest", "consolidate"]      # still ingests + consolidates
+    assert len(results) == 1
+    assert abs(results[0].score - 0.5) < 1e-9              # fractional f1 stored
+    assert results[0].correct is True                     # f1>=0.5 proxy
+    assert calls["i"] == 3                                 # 3 judge calls (fluency/recall/precision)
+
+
+@pytest.mark.asyncio
 async def test_run_instance_paper_ingests_then_answers_with_paper_prompt():
     from mab.paper_run import run_instance_paper
     inst = MabInstance(

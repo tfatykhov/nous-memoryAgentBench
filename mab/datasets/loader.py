@@ -161,6 +161,7 @@ def load_competency(
                 context=context,
                 questions=questions,
                 haystack_turns=_flatten_haystack(metadata.get("haystack_sessions")),
+                keypoints=list(metadata.get("keypoints") or []),
             )
         )
 

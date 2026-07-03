@@ -32,6 +32,9 @@ class ReplayResult:
     golds: list[str]
     correct: bool
     error: str | None = None
+    # Fractional score for non-binary sources (infbench_sum summarization f1);
+    # None for binary-graded sources. correct is set from score>=0.5 as a proxy.
+    score: float | None = None
 
 
 async def answer_only(

@@ -21,6 +21,7 @@ from mab.config import Config, HarnessSettings
 from mab.datasets import MabInstance, Question
 from mab.grading.paper_grader import NeedsLLMJudge, grader_for_source
 from mab.grading.paper_llm_judge import Completer, LongmemJudge
+from mab.grading.paper_summarization_judge import SummarizationJudge
 from mab.instance import NousInstance
 from mab.paper_prompts import prompt_for_source
 from mab.replay import ReplayResult
@@ -50,12 +51,23 @@ async def run_instance_paper(
 ) -> list[ReplayResult]:
     """Ingest + consolidate + answer(paper prompt) + grade(paper) for one instance."""
     prompt = prompt_for_source(inst.source)
+    is_summ = "infbench_sum" in inst.source.lower()
     await method.ingest(inst)
     await method.consolidate()  # runs settings.sleep_cycles internally
     results: list[ReplayResult] = []
     for q in inst.questions:
         try:
             ans = await method.answer(frame_prompt(prompt, q.prompt))
+            if is_summ:  # summarization: fractional f1 (not binary), via the 3-call judge
+                if completer is None:
+                    raise RuntimeError(f"{inst.source} requires an LLM-judge completer")
+                gold = q.gold_answers[0] if q.gold_answers else ""
+                sc = await SummarizationJudge(completer).score(ans.text, inst.keypoints, gold)
+                results.append(ReplayResult(
+                    inst.source, inst.instance_id, q.qa_pair_id, q.prompt,
+                    ans.text, q.gold_answers, sc.f1 >= 0.5, score=sc.f1,
+                ))
+                continue
             correct = await grade_paper(inst.source, q, ans.text, completer)
             results.append(ReplayResult(
                 inst.source, inst.instance_id, q.qa_pair_id, q.prompt,
