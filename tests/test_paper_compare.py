@@ -237,6 +237,46 @@ class _IngestMethod:
         return AnswerResult(text=self._reply, input_tokens=1, output_tokens=1)
 
 
+def test_parse_json_extracts_last_object_or_fence():
+    from mab.grading.paper_summarization_judge import parse_json
+    assert parse_json('reasoning... the answer is {"recall": 4}') == {"recall": 4}
+    assert parse_json('```json\n{"fluency": 1}\n```') == {"fluency": 1}
+    assert parse_json("no json here") is None
+
+
+@pytest.mark.asyncio
+async def test_summarization_judge_matches_paper_formula():
+    from mab.grading.paper_summarization_judge import SummarizationJudge
+    # fluency=1, recall=4 of 8 keypoints -> 0.5, precision=3 of 6 sentences -> 0.5
+    # f1 = 1 * 2*(0.5*0.5)/(0.5+0.5) = 0.5
+    replies = ['{"fluency": 1}', 'reasoning {"recall": 4}', 'reasoning {"precision": 3, "sentence_count": 6}']
+    calls = {"i": 0}
+
+    async def seq(prompt, model):
+        r = replies[calls["i"]]; calls["i"] += 1
+        return r
+
+    j = SummarizationJudge(seq, model="gpt-4o")
+    s = await j.score("A summary.", [f"kp{i}" for i in range(8)], "Expert summary.")
+    assert s.fluency == 1 and s.recall == 0.5 and s.precision == 0.5
+    assert abs(s.f1 - 0.5) < 1e-9
+    assert calls["i"] == 3  # exactly 3 judge calls (fluency, recall, precision)
+
+
+@pytest.mark.asyncio
+async def test_summarization_fluency_gates_f1_to_zero():
+    from mab.grading.paper_summarization_judge import SummarizationJudge
+    replies = ['{"fluency": 0}', '{"recall": 8}', '{"precision": 6, "sentence_count": 6}']
+    calls = {"i": 0}
+
+    async def seq(prompt, model):
+        r = replies[calls["i"]]; calls["i"] += 1
+        return r
+
+    s = await SummarizationJudge(seq).score("x", ["a"] * 8, "y")
+    assert s.f1 == 0.0  # fluency 0 zeroes the whole score even at perfect recall/precision
+
+
 def test_persist_appends_jsonl_per_instance(tmp_path):
     import json as _json
 
