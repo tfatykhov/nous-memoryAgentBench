@@ -35,9 +35,14 @@ async def main() -> int:
 
     settings = HarnessSettings()
     config = config_from_env_file("configs/prod_memory.env")
-    instances = load_competency(
+    loaded = load_competency(
         Competency.ACCURATE_RETRIEVAL, sources=sources, max_questions_per_instance=max_q
-    )[:max_inst]
+    )
+    # take max_inst PER source (not max_inst total)
+    by_src: dict[str, list] = {}
+    for inst in loaded:
+        by_src.setdefault(inst.source, []).append(inst)
+    instances = [i for s in sources for i in by_src.get(s, [])[:max_inst]]
     nq = sum(len(i.questions) for i in instances)
     print(f"sources={sources} instances={len(instances)} questions={nq}", flush=True)
 
