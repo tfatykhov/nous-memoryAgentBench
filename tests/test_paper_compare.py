@@ -109,6 +109,41 @@ def test_prompt_for_source_maps_each_competency():
         prompt_for_source("unknown_source")
 
 
+# --- LLM judge (longmemeval), fully offline -----------------------------------
+def test_get_anscheck_prompt_dispatches_by_task():
+    from mab.grading.paper_llm_judge import get_anscheck_prompt
+    base = get_anscheck_prompt("multi-session", "Q?", "GOLD", "RESP")
+    assert "Q?" in base and "GOLD" in base and "RESP" in base and "yes or no only" in base.lower()
+    temporal = get_anscheck_prompt("temporal-reasoning", "Q?", "18", "19")
+    assert "off-by-one" in temporal  # temporal task tolerates off-by-one
+    abst = get_anscheck_prompt("multi-session", "Q?", "expl", "RESP", abstention=True)
+    assert "unanswerable" in abst
+    import pytest as _pytest
+    with _pytest.raises(NotImplementedError):
+        get_anscheck_prompt("bogus-task", "Q", "A", "R")
+
+
+@pytest.mark.asyncio
+async def test_longmem_judge_maps_yes_no():
+    from mab.grading.paper_llm_judge import LongmemJudge
+    seen = {}
+
+    async def fake_yes(prompt, model):
+        seen["prompt"], seen["model"] = prompt, model
+        return "Yes"
+
+    async def fake_no(prompt, model):
+        return "No, the response is incorrect."
+
+    j_yes = LongmemJudge(fake_yes, model="gpt-4o")
+    r = await j_yes.judge("Where?", "Paris", "It is Paris.", "multi-session")
+    assert r.correct is True and r.matched_gold == "Paris"
+    assert "Paris" in seen["prompt"] and seen["model"] == "gpt-4o"  # question/gold/answer + model wired
+
+    r2 = await LongmemJudge(fake_no).judge("Where?", "Paris", "I don't know.", "multi-session")
+    assert r2.correct is False
+
+
 # --- answer-only replay -------------------------------------------------------
 class _FakeMethod:
     """Records answer prompts; has NO ingest/consolidate (answer-only must not call them)."""
