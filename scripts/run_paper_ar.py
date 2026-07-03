@@ -46,9 +46,13 @@ async def main() -> int:
     nq = sum(len(i.questions) for i in instances)
     print(f"sources={sources} instances={len(instances)} questions={nq}", flush=True)
 
+    results_path = f"reports/paper_ar/results_{'-'.join(s[:12] for s in sources)}.jsonl"
+    print(f"per-instance results persisted to: {results_path}", flush=True)
     async with httpx.AsyncClient() as judge_client:
         completer = openai_completer(_openai_key(), judge_client)
-        results = await run_paper_faithful(settings, config, instances, completer)
+        results = await run_paper_faithful(
+            settings, config, instances, completer, results_path=results_path
+        )
 
     by: dict[str, list[int]] = {}
     for r in results:

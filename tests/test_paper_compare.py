@@ -237,6 +237,20 @@ class _IngestMethod:
         return AnswerResult(text=self._reply, input_tokens=1, output_tokens=1)
 
 
+def test_persist_appends_jsonl_per_instance(tmp_path):
+    import json as _json
+
+    from mab.paper_run import _persist
+    p = str(tmp_path / "r.jsonl")
+    _persist(p, [ReplayResult("s", "s#0", "q0", "Q", "A", ["A"], True)])
+    _persist(p, [ReplayResult("s", "s#1", "q1", "Q", "B", ["C"], False, "err")])
+    lines = [_json.loads(x) for x in open(p).read().splitlines()]
+    assert len(lines) == 2                       # appended, not overwritten
+    assert lines[0]["correct"] is True and lines[0]["instance_id"] == "s#0"
+    assert lines[1]["error"] == "err"
+    _persist(None, [ReplayResult("s", "s#2", None, "Q", "", [], False)])  # no path -> no-op
+
+
 @pytest.mark.asyncio
 async def test_run_instance_paper_ingests_then_answers_with_paper_prompt():
     from mab.paper_run import run_instance_paper

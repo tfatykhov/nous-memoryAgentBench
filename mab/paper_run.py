@@ -9,6 +9,8 @@ paper's metric) — no control arm / memory-lift.
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import logging
 import uuid
 
@@ -67,11 +69,25 @@ async def run_instance_paper(
     return results
 
 
+def _persist(results_path: str | None, rows: list[ReplayResult]) -> None:
+    """Append one instance's results as JSONL so a killed/rate-limited run keeps
+    the sources it already finished."""
+    if not results_path:
+        return
+    with open(results_path, "a", encoding="utf-8") as f:
+        for r in rows:
+            f.write(json.dumps(dataclasses.asdict(r)) + "\n")
+
+
 async def run_paper_faithful(
     settings: HarnessSettings, config: Config, instances: list[MabInstance],
-    completer: Completer | None = None,
+    completer: Completer | None = None, results_path: str | None = None,
 ) -> list[ReplayResult]:
-    """Full paper-faithful run: a fresh server/agent per instance."""
+    """Full paper-faithful run: a fresh server/agent per instance.
+
+    ``results_path`` (optional JSONL) is appended after EACH instance, so a
+    rate-limited tail or a kill can't lose already-completed sources.
+    """
     results: list[ReplayResult] = []
     for inst in instances:
         agent_id = f"{settings.agent_id_prefix}-paper-{uuid.uuid4().hex[:8]}"
@@ -79,12 +95,13 @@ async def run_paper_faithful(
             async with NousInstance(settings, config, agent_id) as running:
                 async with httpx.AsyncClient() as client:
                     method = NousMemoryMethod(client, running.base_url, settings)
-                    results.extend(await run_instance_paper(method, inst, completer))
+                    rows = await run_instance_paper(method, inst, completer)
         except Exception as exc:
             logger.exception("paper run instance %s failed", inst.instance_id)
-            for q in inst.questions:
-                results.append(ReplayResult(
-                    inst.source, inst.instance_id, q.qa_pair_id, q.prompt,
-                    "", q.gold_answers, False, f"{type(exc).__name__}: {exc}",
-                ))
+            rows = [ReplayResult(
+                inst.source, inst.instance_id, q.qa_pair_id, q.prompt,
+                "", q.gold_answers, False, f"{type(exc).__name__}: {exc}",
+            ) for q in inst.questions]
+        results.extend(rows)
+        _persist(results_path, rows)  # flush this instance before the next one
     return results
