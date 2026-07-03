@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from mab.adapter import AnswerResult
+from mab.adapter import AnswerResult, IngestStats
 from mab.datasets import Competency, MabInstance, Question
 from mab.grading import ExactMatch, SubstringExactMatch
 from mab.grading.paper_grader import (
@@ -192,3 +192,61 @@ async def test_answer_only_records_error_not_silent_zero():
     assert len(results) == 2
     assert all(r.error and not r.correct for r in results)
     assert "recall failed" in results[0].error
+
+
+# --- paper-faithful run path (per-source prompt + grader) ---------------------
+@pytest.mark.asyncio
+async def test_grade_paper_dispatches_algorithmic_and_llm():
+    from mab.grading.paper_grader import IclExactMatch  # noqa: F401 (import sanity)
+    from mab.paper_run import grade_paper
+
+    q_ev = Question(prompt="then?", gold_answers=["A", "B"], metric="substring_exact_match")
+    assert await grade_paper("eventqa_65536", q_ev, "A then B", None) is True
+    assert await grade_paper("eventqa_65536", q_ev, "only A", None) is False
+
+    q_lm = Question(prompt="Where?", gold_answers=["Paris"], metric="substring_exact_match",
+                    question_type="multi-session", qa_pair_id="lm_1")
+
+    async def yes(prompt, model):
+        return "Yes"
+
+    assert await grade_paper("longmemeval_s*", q_lm, "It is Paris.", yes) is True
+    # longmemeval without a completer must error, not silently pass
+    with pytest.raises(RuntimeError):
+        await grade_paper("longmemeval_s*", q_lm, "It is Paris.", None)
+
+
+class _IngestMethod:
+    """Fake method recording lifecycle; answers a fixed reply."""
+
+    def __init__(self, reply="A then B"):
+        self.calls: list[str] = []
+        self.prompts: list[str] = []
+        self._reply = reply
+
+    async def ingest(self, inst):
+        self.calls.append("ingest")
+        return IngestStats(chunks_sent=1, chunks_truncated=0)
+
+    async def consolidate(self):
+        self.calls.append("consolidate")
+        return True
+
+    async def answer(self, prompt):
+        self.prompts.append(prompt)
+        return AnswerResult(text=self._reply, input_tokens=1, output_tokens=1)
+
+
+@pytest.mark.asyncio
+async def test_run_instance_paper_ingests_then_answers_with_paper_prompt():
+    from mab.paper_run import run_instance_paper
+    inst = MabInstance(
+        competency=Competency.ACCURATE_RETRIEVAL, source="eventqa_65536",
+        instance_id="eventqa_65536#0", context="ctx",
+        questions=[Question(prompt="then?", gold_answers=["A", "B"], metric="substring_exact_match")],
+    )
+    method = _IngestMethod(reply="A then B happened")
+    results = await run_instance_paper(method, inst)
+    assert method.calls == ["ingest", "consolidate"]           # ingested + consolidated
+    assert "event that happens next" in method.prompts[0]       # paper eventqa prompt used
+    assert results[0].correct is True                           # both gold elems present
