@@ -8,12 +8,23 @@ from mab.adapter import AnswerResult
 from mab.datasets import Competency, MabInstance, Question
 from mab.grading import ExactMatch, SubstringExactMatch
 from mab.grading.paper_grader import (
+    EventqaRecall,
+    IclExactMatch,
+    NeedsLLMJudge,
+    NeedsRecsysData,
     PaperExactMatch,
     PaperSubstringExactMatch,
+    grader_for_source,
     normalize_answer,
     substring_exact_match_score,
 )
-from mab.paper_prompts import PAPER_CR_PROMPT, PAPER_PROMPTS
+from mab.paper_prompts import (
+    PAPER_CR_PROMPT,
+    PAPER_EVENTQA_PROMPT,
+    PAPER_ICL_PROMPT,
+    PAPER_PROMPTS,
+    prompt_for_source,
+)
 from mab.replay import ReplayResult, answer_only
 
 
@@ -53,6 +64,49 @@ def test_cr_prompt_registered_with_paper_grader():
     assert prompt is PAPER_CR_PROMPT
     assert "serial number" in prompt and "{question}" in prompt
     assert metric == "paper_substring_exact_match"
+
+
+# --- per-source graders (AR/TTL/LRU) ------------------------------------------
+def test_eventqa_recall_needs_all_gold_elements():
+    # AR eventqa: binary recall -> correct only if EVERY gold element is present.
+    assert EventqaRecall().grade("A then B then C happened", ["A", "B", "C"]).correct is True
+    assert EventqaRecall().grade("A then B happened", ["A", "B", "C"]).correct is False
+
+
+def test_icl_parses_label_then_exact_matches():
+    # TTL icl: parse the label after 'label:' then exact-match the numeric label.
+    assert IclExactMatch().grade("label: 5", ["5"]).correct is True
+    assert IclExactMatch().grade("label: 12", ["5"]).correct is False
+    # a verbose answer that doesn't emit the strict 'label: X' form -> wrong (as paper intends)
+    assert IclExactMatch().grade("I think the intent is 5.", ["5"]).correct is False
+
+
+def test_grader_for_source_mirrors_paper_dispatch():
+    assert isinstance(grader_for_source("eventqa_65536"), EventqaRecall)
+    assert isinstance(grader_for_source("icl_banking77_5900shot_balance"), IclExactMatch)
+    assert isinstance(grader_for_source("ruler_qa1_197K"), PaperSubstringExactMatch)
+    assert isinstance(grader_for_source("factconsolidation_sh_262k"), PaperSubstringExactMatch)
+    assert isinstance(grader_for_source("detective_qa"), PaperSubstringExactMatch)
+
+
+def test_grader_for_source_flags_llm_and_recsys():
+    import pytest as _pytest
+    with _pytest.raises(NeedsLLMJudge):
+        grader_for_source("longmemeval_s*")
+    with _pytest.raises(NeedsLLMJudge):
+        grader_for_source("infbench_sum_eng_shots2")
+    with _pytest.raises(NeedsRecsysData):
+        grader_for_source("recsys_redial_full")
+
+
+def test_prompt_for_source_maps_each_competency():
+    assert prompt_for_source("eventqa_131072") is PAPER_EVENTQA_PROMPT
+    assert prompt_for_source("icl_trec_coarse_6600shot_balance") is PAPER_ICL_PROMPT
+    assert prompt_for_source("factconsolidation_mh_6k") is PAPER_CR_PROMPT
+    assert "label: {label}" in PAPER_ICL_PROMPT  # illustrative, not a {question} sub
+    import pytest as _pytest
+    with _pytest.raises(KeyError):
+        prompt_for_source("unknown_source")
 
 
 # --- answer-only replay -------------------------------------------------------
