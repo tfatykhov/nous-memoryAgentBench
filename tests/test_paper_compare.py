@@ -73,6 +73,13 @@ def test_eventqa_recall_needs_all_gold_elements():
     assert EventqaRecall().grade("A then B happened", ["A", "B", "C"]).correct is False
 
 
+def test_eventqa_recall_uses_raw_lower_not_normalize():
+    # Paper-exact: raw element.lower() in prediction.lower() (NO punct/article strip).
+    # normalize_answer would false-positive here (both -> "jk rowling"); raw must not.
+    assert EventqaRecall().grade("JK Rowling wrote it", ["J.K. Rowling"]).correct is False
+    assert EventqaRecall().grade("J.K. Rowling wrote it", ["J.K. Rowling"]).correct is True
+
+
 def test_icl_parses_label_then_exact_matches():
     # TTL icl: parse the label after 'label:' then exact-match the numeric label.
     assert IclExactMatch().grade("label: 5", ["5"]).correct is True

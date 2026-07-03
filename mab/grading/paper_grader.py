@@ -92,20 +92,38 @@ class PaperExactMatch:
 
 @dataclass(frozen=True)
 class EventqaRecall:
-    """AR eventqa: correct iff EVERY gold element is a normalized substring (binary recall)."""
+    """AR eventqa: correct iff EVERY gold element is present (binary recall).
+
+    Paper-exact: uses raw ``element.lower() in prediction.lower()`` — NOT
+    normalize_answer (no punctuation/article stripping). `_process_eventqa`:
+    ``recall = sum(el.lower() in pred.lower())/len(answer); binary = int(recall==1)``.
+    (Using normalize_answer here would false-positive on punctuation, e.g.
+    "J.K. Rowling" vs "JK Rowling", and on article-only elements.)
+    """
 
     metric: str = "paper_eventqa_recall"
 
     def grade(self, answer: str, gold_answers: list[str]) -> GradeResult:
         if not gold_answers:
             return GradeResult(False, None, "no golds")
-        hit = all(substring_exact_match_score(answer, g) for g in gold_answers)
+        pred = answer.lower()
+        hit = all(g.lower() in pred for g in gold_answers)
         return GradeResult(hit, None, "all gold elements present" if hit else "missing gold element")
 
 
 @dataclass(frozen=True)
 class IclExactMatch:
-    """TTL in-context-learning: parse the label after 'Answer:'/'label:' then exact-match."""
+    """TTL in-context-learning: parse the label after 'label:'/'Answer:' then exact-match.
+
+    NOTE — deliberate interpretation, not byte-faithful to the paper. The paper's
+    _process_icl calls parse_output(pred) with the default 'Answer:' prefix (which
+    on a 'label: 5' output returns the whole line), then reports calculate_metrics
+    (substring + exact + f1) with NO single primary metric — its exact_match always
+    fails on 'label: X' and its substring false-positives on digit collisions
+    (gold '5' matches 'label: 15'). We parse the 'label:' the prompt forces and
+    exact-match the bare label: agrees with the paper on well-formed output and is
+    strictly more correct on collisions (so our TTL number is conservative).
+    """
 
     metric: str = "paper_icl_exact_match"
 
