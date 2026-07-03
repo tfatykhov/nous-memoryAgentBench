@@ -179,6 +179,40 @@ async def test_consolidate_multi_cycle_stops_on_first_timeout():
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_ingest_frames_chunk_as_document_not_instructions():
+    # S2: the old "Please remember the following information ... (part N/M):"
+    # preamble was misread by the nous summarizer as user-provided instructions,
+    # contaminating fact extraction. The ingest turn must frame content as a
+    # SOURCE DOCUMENT, not an instruction to follow.
+    from mab.datasets import Competency, MabInstance, Question
+
+    respx.post(f"{BASE}/chat").mock(return_value=httpx.Response(
+        200, json={"response": "ok", "usage": {}, "debug": {}}))
+    respx.delete(url__regex=rf"{BASE}/chat/.*").mock(return_value=httpx.Response(200, json={}))
+    respx.get(f"{BASE}/events/recent").mock(return_value=httpx.Response(
+        200, json=_recent("episode_summarized")))
+    respx.get(f"{BASE}/status").mock(return_value=httpx.Response(
+        200, json={"memory": {"total_facts": 1}}))
+
+    inst = MabInstance(
+        competency=Competency.CONFLICT_RESOLUTION, source="s", instance_id="s#0",
+        context="David Farragut is a citizen of Denmark.",
+        questions=[Question(prompt="q", gold_answers=["Denmark"], metric="substring_exact_match")],
+    )
+    async with httpx.AsyncClient() as client:
+        m = NousMemoryMethod(client, BASE, _fast_settings())
+        await m.ingest(inst)
+
+    chat_calls = [c for c in respx.calls if c.request.method == "POST" and c.request.url.path == "/chat"]
+    assert chat_calls, "ingest must POST the chunk to /chat"
+    body = chat_calls[0].request.content.decode().lower()
+    assert "source document" in body                       # framed as data
+    assert "remember the following information" not in body  # not instruction-framed
+    assert "David Farragut".lower() in body                 # the content is still sent
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_settle_ingest_waits_for_summary_then_fact_quiescence():
     # episode_summarized appears on 2nd poll; facts then stable across quiescence polls.
     respx.get(f"{BASE}/events/recent").mock(side_effect=[

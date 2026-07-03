@@ -169,9 +169,17 @@ class NousMemoryMethod:
         session_id = f"ingest-{instance.instance_id}-{uuid.uuid4().hex[:8]}"
         baseline_summarized = await self._count_event_type("episode_summarized")
         for idx, chunk in enumerate(chunks):
+            # Frame each chunk as a SOURCE DOCUMENT, not as instructions. The
+            # earlier "Please remember the following information for later
+            # questions (part N/M):" wording was misread by the nous summarizer
+            # as the user handing it numbered instructions, so the episode was
+            # summarized as "Memory Rules for Faithful Summarization" and fact
+            # extraction echoed the summarizer's own system prompt instead of the
+            # content (S2, see docs/reviews/2026-07-02-nous-storage-retrieval-
+            # rootcause.md). nous stores the episode at session-end regardless of
+            # this preamble, so no "remember" instruction is needed.
             preamble = (
-                "Please remember the following information for later questions "
-                f"(part {idx + 1}/{len(chunks)}):\n\n"
+                f"[Source document for later questions — part {idx + 1}/{len(chunks)}]\n\n"
             )
             resp = await self._post_chat(preamble + chunk, session_id)
             usage = resp.get("usage", {}) or {}
