@@ -196,3 +196,41 @@ write fix (S1) → full context captured in chunks ✅
 - The +7.8pp re-baseline gain is confounded across 3 levers.
 - Full CR×8 under the fixed write path + S2 fix has not been run (a retrieval-bound rerun
   before S2 is fixed has low accuracy-information value).
+
+---
+
+## Addendum (2026-07-03): post-fix validation + embed-batch scaling bug
+
+After enabling the fixes (nous S2 hardening #552, R2 hybrid chunk search #553,
+`episode_chunk_recall_limit=30`, harness document-framing preamble, lossless
+capture):
+
+- **64k (was 0%) → 75% (6/8), +75pp lift.** Facts flipped from 11/11 prompt-echo
+  to 4/5 real content; `recalled_fact_ids` 0 → 3–4/Q; `write_loss` 14/16 → 0/8.
+  529 chunks stored, hybrid search live. **S1/S2/R1/R2/R5 all validated fixed.**
+- **262k (1.1M chars) → 12.5% (1/8).** Transcript fully captured (1.12M chars),
+  S2-clean (title "User Provided Source Document…", 0 echo facts) — but **0
+  episode_chunks stored** and only 3 facts → recall found nothing (7/8 write_loss).
+
+### NEW finding — S5/R8: `embed_batch` is not sub-batched (nous-side) — HIGH for large contexts
+`_chunk_and_store_transcript` (episode_summarizer.py:364) calls
+`embedder.embed_batch(chunks)`, which posts **all chunks in one OpenAI
+`/v1/embeddings` request** (embeddings.py:192). A 262k context produces ~2,000
+chunks → the request exceeds OpenAI's per-request limit → **HTTP 400** →
+`embed_batch` raises → F067 **aborts the entire chunk store** (correctly avoiding
+NULL-embedding rows, but with no fallback) → **0 chunks**. Verified in the server
+log (line 1696 + the 400 traceback). 64k's 529 chunks fit in one request and
+succeed; the failure threshold is between 529 and ~2,000.
+
+- **Root fix (nous track):** sub-batch embeddings (≤2048 inputs / under the token
+  cap per request) in `embed_batch`, or make F067 store per-sub-batch so a large
+  transcript degrades gracefully instead of all-or-nothing.
+- **Eval band-aid:** cap `episode_chunk_max_per_episode` under the failure
+  threshold (e.g. 500) — chunking then succeeds but covers only ~25% of a 262k
+  context (gold chunks are randomly distributed, so recovery is partial).
+- **Config lesson:** `episode_chunk_max_per_episode=0` (unlimited) is safe at 64k
+  but the direct trigger at 262k; "measure true capacity" over-reached at the tail.
+
+**Net:** the write→read fixes are validated at ≤64k. Full 262k coverage is blocked
+on the nous embed-batch sub-batching fix; capping only trades total failure for
+partial coverage.
