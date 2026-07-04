@@ -25,11 +25,22 @@ from mab.grading.paper_llm_judge import openai_completer
 from mab.paper_run import run_paper_faithful
 
 
-def _openai_key() -> str:
-    for line in open("../nous/.env", encoding="utf-8", errors="ignore"):
-        if line.startswith("OPENAI_API_KEY"):
-            return line.split("=", 1)[1].strip().strip('"').strip("'")
-    raise RuntimeError("OPENAI_API_KEY not found in ../nous/.env")
+def _openai_key() -> str | None:
+    """Judge key: environment first, then ../nous/.env; None if absent.
+
+    None is fine for sources that never invoke the LLM judge (eventqa/ruler/
+    icl/detective/CR) — paper_run raises only if a judge source needs it.
+    """
+    import os
+    if os.environ.get("OPENAI_API_KEY"):
+        return os.environ["OPENAI_API_KEY"]
+    try:
+        for line in open("../nous/.env", encoding="utf-8", errors="ignore"):
+            if line.startswith("OPENAI_API_KEY"):
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return None
 
 
 async def main() -> int:
@@ -54,13 +65,42 @@ async def main() -> int:
     print(f"[{competency.value}] config={config_file} instances={len(instances)} questions={nq}", flush=True)
     print(f"persisting to: {results_path}", flush=True)
 
+    import json
     import os
     os.makedirs("reports/paper_baseline", exist_ok=True)
     open(results_path, "w").close()  # fresh file per run: _persist appends, and a
     # same-source rerun reuses this tag -> without truncation it mixes runs (dup rows).
+    # Companion run metadata: makes every result file self-describing (which ingest
+    # capacity produced it), so truncation audits don't depend on shell history.
+    with open(results_path + ".meta.json", "w", encoding="utf-8") as mf:
+        json.dump({
+            "competency": competency.value, "sources": sources, "config_file": config_file,
+            "chunk_chars": settings.chunk_chars, "max_ingest_chunks": settings.max_ingest_chunks,
+            "sleep_cycles": settings.sleep_cycles, "max_instances_per_source": max_inst,
+            "max_questions_per_instance": max_q,
+        }, mf, indent=2)
     async with httpx.AsyncClient() as judge_client:
-        completer = openai_completer(_openai_key(), judge_client)
+        key = _openai_key()
+        completer = openai_completer(key, judge_client) if key else None
         results = await run_paper_faithful(settings, config, instances, completer, results_path=results_path)
+
+    # TRUNCATION GATE: a wrong answer on a truncated instance may mean the answer
+    # text was never ingested (infra failure, not memory failure). Split those
+    # instances OUT of the headline and report them separately, loudly.
+    # SETTLE FLAG (warn-only): unsettled instances stay in the headline (an
+    # unsettled write is nous's failure to absorb) but must be visible.
+    unsettled = sorted({r.instance_id for r in results if r.ingest_settled is False})
+    if unsettled:
+        print(f"\n!! UNSETTLED INSTANCES (memory may be incompletely written): {unsettled}", flush=True)
+
+    truncated_insts = sorted({r.instance_id for r in results if (r.chunks_truncated or 0) > 0})
+    if truncated_insts:
+        print(f"\n!! TRUNCATED INSTANCES EXCLUDED FROM HEADLINE ({len(truncated_insts)}):", flush=True)
+        for iid in truncated_insts:
+            rr = [r for r in results if r.instance_id == iid]
+            print(f"!!   {iid}: dropped {rr[0].chunks_truncated} chunks, "
+                  f"{sum(1 for r in rr if r.correct)}/{len(rr)} correct (NOT headline-valid)", flush=True)
+        results = [r for r in results if r.instance_id not in set(truncated_insts)]
 
     by: dict[str, dict] = {}
     for r in results:

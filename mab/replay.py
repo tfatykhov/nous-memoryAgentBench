@@ -35,6 +35,16 @@ class ReplayResult:
     # Fractional score for non-binary sources (infbench_sum summarization f1);
     # None for binary-graded sources. correct is set from score>=0.5 as a proxy.
     score: float | None = None
+    # Ingest self-audit (None on answer-only replay and on pre-2026-07-04 records):
+    # headline reports must SPLIT OUT any instance with chunks_truncated > 0 — a
+    # wrong answer on a truncated instance may mean the answer-bearing text was
+    # never ingested, which is an infra failure, not a memory failure.
+    chunks_sent: int | None = None
+    chunks_truncated: int | None = None
+    # False when ingest/consolidation did NOT settle before its timeout (memory
+    # may be incompletely written). Health flag: reports must surface it; rows
+    # still count against nous (an unsettled write is nous's failure to absorb).
+    ingest_settled: bool | None = None
 
 
 async def answer_only(

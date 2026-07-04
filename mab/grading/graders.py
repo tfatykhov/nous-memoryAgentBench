@@ -121,7 +121,18 @@ class Grader(Protocol):
 
 @dataclass(frozen=True)
 class SubstringExactMatch:
-    """Correct if any gold is a substring of the answer (after normalization)."""
+    """Correct if any gold is a substring of the answer (after normalization).
+
+    DEVIATION from official MAB SubEM: this grader rejects gold occurrences
+    inside an abstention scope ("I don't know if it was Paris" does not count
+    as answering Paris). That is stricter than the paper's containment check
+    and is intended for INTERNAL memory-lift attribution. Headline paper-
+    comparable numbers must use mab.grading.paper_grader instead.
+
+    The metric key stays "substring_exact_match" because dataset rows carry it
+    as the grader-registry lookup key; the semantic deviation is documented
+    here and in the baseline report rather than encoded in the key.
+    """
 
     metric: str = "substring_exact_match"
 

@@ -116,6 +116,9 @@ def cmd_run(args: argparse.Namespace) -> int:
             "max_questions_per_instance": settings.max_questions_per_instance,
             "max_instances": args.max_instances,
             "diagnostics_enabled": settings.diagnostics_enabled,
+            # Load-bearing for consolidation A/Bs: without it a 3-cycle report
+            # is indistinguishable from a default 1-cycle one.
+            "sleep_cycles": settings.sleep_cycles,
         },
     }
     report = asyncio.run(run_matrix(settings, competency.value, configs, instances))

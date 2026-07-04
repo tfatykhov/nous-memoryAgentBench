@@ -284,6 +284,22 @@ async def test_summarization_fluency_gates_f1_to_zero():
     assert s.f1 == 0.0  # fluency 0 zeroes the whole score even at perfect recall/precision
 
 
+@pytest.mark.asyncio
+async def test_run_instance_paper_stamps_ingest_audit_on_every_row():
+    # Self-audit: every result row carries chunks_sent/chunks_truncated so a
+    # headline report can split out truncated instances (never-ingested answers).
+    from mab.paper_run import run_instance_paper as _rip
+    inst = MabInstance(
+        competency=Competency.ACCURATE_RETRIEVAL, source="ruler_qa2_421K",
+        instance_id="ruler_qa2_421K#0", context="ctx",
+        questions=[Question(prompt="q1", gold_answers=["A"], metric="substring_exact_match"),
+                   Question(prompt="q2", gold_answers=["Z"], metric="substring_exact_match")],
+    )
+    results = await _rip(_IngestMethod(reply="A then B"), inst)
+    assert len(results) == 2
+    assert all(r.chunks_sent == 1 and r.chunks_truncated == 0 for r in results)
+
+
 def test_persist_appends_jsonl_per_instance(tmp_path):
     import json as _json
 

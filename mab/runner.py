@@ -57,6 +57,10 @@ class QuestionResult:
     recalled_episode_ids: list[str] = field(default_factory=list)
     # Failure attribution (Phase 0): success | synthesis_error | retrieval_miss
     # | write_loss | None (unknown / diagnostics disabled).
+    # DIAGNOSTIC ONLY, NOT A METRIC: the classifier is a heuristic gold-string
+    # search over recall-accessible stores (see mab.diagnostics) and can
+    # misclassify incidental gold occurrences as "stored". Use it to direct
+    # root-cause work; never report it as a benchmark score.
     attribution: str | None = None
     # No-memory control arm: the same question answered on the EMPTY agent
     # before ingest. control_correct is None when the control arm is disabled or

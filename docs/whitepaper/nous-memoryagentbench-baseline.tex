@@ -340,6 +340,24 @@ Three observations:
         memory bugs were fixed,'' not as a blind first attempt. No knob was
         tuned per-dataset, and the same configuration serves all four
         competencies.
+  \item \textbf{Ingestion transport differs from the paper's protocol.} The
+        benchmark feeds context in chunks of 512 tokens for the doc-QA,
+        LongMemEval, and conflict-resolution tasks and 4096 tokens elsewhere
+        (uniformly 4096 for the commercial memory agents, for cost); our
+        harness streams 32{,}000-character turns, and \nous{} re-chunks
+        internally for retrieval, so transport granularity is not the
+        retrieval granularity. The baseline is therefore paper-faithful in
+        prompts, graders, judges, and question sets, but \emph{not} an exact
+        reproduction of the paper's ingestion transport. No answer-bearing
+        text was lost to this difference: ingest capacity was
+        80 $\times$ 32k chars (2.56M), and a post-hoc audit of all 34
+        evaluated instances at the exact run settings confirmed
+        \textbf{zero dropped chunks} (largest instance: 2.31M chars, 73/80
+        chunks; the 1{,}282-turn LongMemEval conversation packed to 50 chunks
+        with every turn retained). Runs now stamp
+        \texttt{chunks\_sent}/\texttt{chunks\_truncated} on every persisted
+        result row, and truncated instances are excluded from headline
+        aggregates by construction.
   \item \textbf{Benchmark prompts embed task rules.} The benchmark's own CR
         and eventQA templates tell the agent the update rule / task framing.
         We use them because the field numbers use them; they help any
