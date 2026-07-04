@@ -15,13 +15,18 @@ github.com/HUST-AI-HYZ/MemoryAgentBench (MIT), independently reviewed.
 | Conflict Resolution | **0.766** | 64 | 5–33% | above (large margin) |
 | Accurate Retrieval | **0.844** | 64 | 33–72% | above (firm up n) |
 | Test-Time Learning | **0.555** (CI [0.49,0.62]) | 200 | 12–54% | **AT ceiling — not clearly above** |
-| Long-Range Understanding | **0.833** (detective) · **0.592 f1** (infbench_sum) | 6 + 1 | 16–62% | n too small — re-measuring |
+| Long-Range Understanding | **0.824** (detective, n=68) · **0.592 f1** (infbench, n=1) | 68 + 1 | 16–62% | above (detective clears; infbench firming) |
 
-**UPDATE 2026-07-04 — sampling correction:** TTL re-measured at n=40/source (200 total) fell
-from the optimistic n=8 baseline of 0.650 to **0.555**, CI [0.486, 0.624] straddling the 54%
-field top. Small-n point estimates here run optimistic (trec_fine 0.625→0.450), so LRU (n=6)
-is being re-measured before any claim, and AR should be firmed up. CR/AR retain large enough
-margins to clear field even at their lower CIs; TTL does not.
+**UPDATE 2026-07-04 — sampling correction (measurements re-validated at full n):**
+- **TTL** re-measured at n=200 (40/source) **fell 0.650 → 0.555**, CI [0.486, 0.624] straddling
+  the 54% field top → **AT the ceiling, NOT clearly above.** trec_fine 0.625→0.450 drove it.
+- **LRU detective** re-measured at n=68 (all 10 contexts) **held: 0.833 → 0.824**, CI
+  [0.733, 0.914], lower bound clears the 62% field top → **robustly above.** (Full-fidelity
+  config hit 26% ReadTimeouts on 10 sequential 400k ingests; the big-context profile —
+  bounded summarizer + 1 sleep + 15s delay — ran it at 0 errors.)
+- Net: proper sampling **corrected TTL** (small-n was an optimistic draw) and **confirmed LRU**.
+  Pattern: small-n memory-eval estimates run optimistic; grow n until the CI clears the band.
+  Still to firm: AR (smaller margin than CR), infbench (n=1), CR (large margin, low priority).
 
 Per-source:
 - CR (factconsolidation): 0.766 overall; single-hop 0.906, multi-hop 0.625 (field multi-hop <7%).
