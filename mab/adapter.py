@@ -55,7 +55,21 @@ class AnswerResult:
 def chunk_context(instance: MabInstance, chunk_chars: int, max_chunks: int) -> tuple[list[str], int]:
     """Return (chunks, n_truncated). Prefer MAB's pre-chunked turns when present."""
     if instance.haystack_turns:
-        texts = [str(t.get("content", "")) for t in instance.haystack_turns if t.get("content")]
+        # PACK turns into chunk_chars-sized chunks (join consecutive turns) rather
+        # than one-turn-per-chunk. One-per-chunk truncates long conversations at
+        # max_chunks (longmemeval: 1282 turns -> 80 = ~6% ingested). Packing keeps
+        # every turn while holding the chunk count low (1.6M chars / 32k ~ 50).
+        turns = [str(t.get("content", "")) for t in instance.haystack_turns if t.get("content")]
+        texts = []
+        buf = ""
+        for t in turns:
+            if buf and len(buf) + len(t) + 1 > chunk_chars:
+                texts.append(buf)
+                buf = t
+            else:
+                buf = f"{buf}\n{t}" if buf else t
+        if buf:
+            texts.append(buf)
     else:
         ctx = instance.context
         texts = [ctx[i : i + chunk_chars] for i in range(0, len(ctx), chunk_chars)]
@@ -169,9 +183,17 @@ class NousMemoryMethod:
         session_id = f"ingest-{instance.instance_id}-{uuid.uuid4().hex[:8]}"
         baseline_summarized = await self._count_event_type("episode_summarized")
         for idx, chunk in enumerate(chunks):
+            # Frame each chunk as a SOURCE DOCUMENT, not as instructions. The
+            # earlier "Please remember the following information for later
+            # questions (part N/M):" wording was misread by the nous summarizer
+            # as the user handing it numbered instructions, so the episode was
+            # summarized as "Memory Rules for Faithful Summarization" and fact
+            # extraction echoed the summarizer's own system prompt instead of the
+            # content (S2, see docs/reviews/2026-07-02-nous-storage-retrieval-
+            # rootcause.md). nous stores the episode at session-end regardless of
+            # this preamble, so no "remember" instruction is needed.
             preamble = (
-                "Please remember the following information for later questions "
-                f"(part {idx + 1}/{len(chunks)}):\n\n"
+                f"[Source document for later questions — part {idx + 1}/{len(chunks)}]\n\n"
             )
             resp = await self._post_chat(preamble + chunk, session_id)
             usage = resp.get("usage", {}) or {}
@@ -211,7 +233,25 @@ class NousMemoryMethod:
         return False
 
     async def consolidate(self) -> bool:
-        """Trigger a sleep cycle and wait for completion.
+        """Run ``sleep_cycles`` consolidation cycles, waiting for each to settle.
+
+        A single sleep may not create all connections: nous consolidation phases
+        (associative linking, chunk consolidation, orphan re-linking) are
+        per-cycle capped and transitive, so edges built in one cycle unlock more
+        in the next. Each cycle is an independent trigger+settle. Returns True
+        only if every cycle settled (or sleep is disabled); False if any cycle
+        times out, so the caller can flag incomplete consolidation.
+        """
+        cycles = max(1, self._s.sleep_cycles)
+        for cycle in range(cycles):
+            if cycles > 1:
+                logger.info("consolidation cycle %d/%d", cycle + 1, cycles)
+            if not await self._consolidate_once():
+                return False
+        return True
+
+    async def _consolidate_once(self) -> bool:
+        """Trigger one sleep cycle and wait for completion.
 
         Primary completion signal is a new ``sleep_completed`` event in
         /events/recent (works and fires even when a cycle yields 0 new facts).

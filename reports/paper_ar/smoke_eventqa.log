@@ -1,0 +1,4 @@
+sources=['eventqa_65536'] instances=1 questions=8
+  eventqa_65536            PAPER 7/8 = 0.875   errored=0
+
+AR paper-faithful: 7/8 = 0.875

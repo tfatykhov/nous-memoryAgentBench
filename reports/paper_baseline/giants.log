@@ -1,0 +1,52 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[long_range_understanding] config=configs/prod_memory_bigctx.env instances=1 questions=1
+persisting to: reports/paper_baseline/results_long_range_understanding_infbench_sum_e.jsonl
+
+  infbench_sum_eng_shots2          PAPER mean f1 = 0.592  (n=1)  errored=0
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[accurate_retrieval] config=configs/prod_memory_bigctx.env instances=1 questions=8
+persisting to: reports/paper_baseline/results_accurate_retrieval_eventqa_131072.jsonl
+
+  eventqa_131072                   PAPER 6/8 = 0.750   errored=0
+
+accurate_retrieval paper-faithful (binary sources): 6/8 = 0.750
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[accurate_retrieval] config=configs/prod_memory_bigctx.env instances=1 questions=8
+persisting to: reports/paper_baseline/results_accurate_retrieval_longmemeval_s*.jsonl
+ingest truncated 1202 chunks (cap 80) for longmemeval_s*#17
+Traceback (most recent call last):
+  File "E:\Projects\nous-memoryAgentBench\scripts\run_paper_baseline.py", line 84, in <module>
+    sys.exit(asyncio.run(main()))
+             ~~~~~~~~~~~^^^^^^^^
+  File "C:\Users\User\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py", line 204, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Users\User\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py", line 127, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\User\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "E:\Projects\nous-memoryAgentBench\scripts\run_paper_baseline.py", line 59, in main
+    results = await run_paper_faithful(settings, config, instances, completer, results_path=results_path)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projects\nous-memoryAgentBench\mab\paper_run.py", line 118, in run_paper_faithful
+    _persist(results_path, rows)  # flush this instance before the next one
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projects\nous-memoryAgentBench\mab\paper_run.py", line 89, in _persist
+    with open(results_path, "a", encoding="utf-8") as f:
+         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 22] Invalid argument: 'reports/paper_baseline/results_accurate_retrieval_longmemeval_s*.jsonl'
+[accurate_retrieval] config=configs/prod_memory_bigctx.env instances=1 questions=8
+persisting to: reports/paper_baseline/results_accurate_retrieval_ruler_qa2_421K.jsonl
+
+  ruler_qa2_421K                   PAPER 6/8 = 0.750   errored=0
+
+accurate_retrieval paper-faithful (binary sources): 6/8 = 0.750
+[accurate_retrieval] config=configs/prod_memory_bigctx.env instances=1 questions=8
+persisting to: reports/paper_baseline/results_accurate_retrieval_eventqa_full.jsonl
+
+  eventqa_full                     PAPER 7/8 = 0.875   errored=0
+
+accurate_retrieval paper-faithful (binary sources): 7/8 = 0.875
+GIANTS_BATCH_DONE 01:48

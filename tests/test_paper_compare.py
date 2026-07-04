@@ -1,0 +1,340 @@
+"""Paper-faithful grader + answer-only replay (paper-comparison path)."""
+
+from __future__ import annotations
+
+import pytest
+
+from mab.adapter import AnswerResult, IngestStats
+from mab.datasets import Competency, MabInstance, Question
+from mab.grading import ExactMatch, SubstringExactMatch
+from mab.grading.paper_grader import (
+    EventqaRecall,
+    IclExactMatch,
+    NeedsLLMJudge,
+    NeedsRecsysData,
+    PaperExactMatch,
+    PaperSubstringExactMatch,
+    grader_for_source,
+    normalize_answer,
+    substring_exact_match_score,
+)
+from mab.paper_prompts import (
+    PAPER_CR_PROMPT,
+    PAPER_EVENTQA_PROMPT,
+    PAPER_ICL_PROMPT,
+    PAPER_PROMPTS,
+    prompt_for_source,
+)
+from mab.replay import ReplayResult, answer_only
+
+
+# --- paper grader is verbatim MemoryAgentBench --------------------------------
+def test_normalize_strips_articles_and_punctuation():
+    # their normalize_answer: lower + drop punctuation + drop a/an/the + ws
+    assert normalize_answer("The Answer, is: France!") == "answer is france"
+    assert normalize_answer("a United  Kingdom.") == "united kingdom"
+
+
+def test_paper_substring_is_plain_and_max_over_golds():
+    assert substring_exact_match_score("It is in France.", "france") is True
+    assert PaperSubstringExactMatch().grade("answer: Paris", ["London", "Paris"]).correct
+
+
+@pytest.mark.parametrize(
+    "answer,gold",
+    [
+        ("France is not in my memory.", "France"),   # gold inside abstention
+        ("I don't remember, maybe Italy", "Italy"),
+    ],
+)
+def test_paper_grader_differs_from_ours_on_abstention(answer, gold):
+    # Paper's plain substring ACCEPTS gold echoed inside a refusal; ours REJECTS it.
+    assert PaperSubstringExactMatch().grade(answer, [gold]).correct is True
+    assert SubstringExactMatch().grade(answer, [gold]).correct is False
+
+
+def test_paper_exact_match_strips_punctuation_unlike_ours():
+    # "France." vs "France": paper strips the period (match); ours keeps it (no match).
+    assert PaperExactMatch().grade("France.", ["France"]).correct is True
+    assert ExactMatch().grade("France.", ["France"]).correct is False
+
+
+def test_cr_prompt_registered_with_paper_grader():
+    prompt, metric = PAPER_PROMPTS["conflict_resolution"]
+    assert prompt is PAPER_CR_PROMPT
+    assert "serial number" in prompt and "{question}" in prompt
+    assert metric == "paper_substring_exact_match"
+
+
+# --- per-source graders (AR/TTL/LRU) ------------------------------------------
+def test_eventqa_recall_needs_all_gold_elements():
+    # AR eventqa: binary recall -> correct only if EVERY gold element is present.
+    assert EventqaRecall().grade("A then B then C happened", ["A", "B", "C"]).correct is True
+    assert EventqaRecall().grade("A then B happened", ["A", "B", "C"]).correct is False
+
+
+def test_eventqa_recall_uses_raw_lower_not_normalize():
+    # Paper-exact: raw element.lower() in prediction.lower() (NO punct/article strip).
+    # normalize_answer would false-positive here (both -> "jk rowling"); raw must not.
+    assert EventqaRecall().grade("JK Rowling wrote it", ["J.K. Rowling"]).correct is False
+    assert EventqaRecall().grade("J.K. Rowling wrote it", ["J.K. Rowling"]).correct is True
+
+
+def test_icl_parses_label_then_exact_matches():
+    # TTL icl: parse the label after 'label:' then exact-match the numeric label.
+    assert IclExactMatch().grade("label: 5", ["5"]).correct is True
+    assert IclExactMatch().grade("label: 12", ["5"]).correct is False
+    # a verbose answer that doesn't emit the strict 'label: X' form -> wrong (as paper intends)
+    assert IclExactMatch().grade("I think the intent is 5.", ["5"]).correct is False
+
+
+def test_grader_for_source_mirrors_paper_dispatch():
+    assert isinstance(grader_for_source("eventqa_65536"), EventqaRecall)
+    assert isinstance(grader_for_source("icl_banking77_5900shot_balance"), IclExactMatch)
+    assert isinstance(grader_for_source("ruler_qa1_197K"), PaperSubstringExactMatch)
+    assert isinstance(grader_for_source("factconsolidation_sh_262k"), PaperSubstringExactMatch)
+    assert isinstance(grader_for_source("detective_qa"), PaperSubstringExactMatch)
+
+
+def test_grader_for_source_flags_llm_and_recsys():
+    import pytest as _pytest
+    with _pytest.raises(NeedsLLMJudge):
+        grader_for_source("longmemeval_s*")
+    with _pytest.raises(NeedsLLMJudge):
+        grader_for_source("infbench_sum_eng_shots2")
+    with _pytest.raises(NeedsRecsysData):
+        grader_for_source("recsys_redial_full")
+
+
+def test_prompt_for_source_maps_each_competency():
+    assert prompt_for_source("eventqa_131072") is PAPER_EVENTQA_PROMPT
+    assert prompt_for_source("icl_trec_coarse_6600shot_balance") is PAPER_ICL_PROMPT
+    assert prompt_for_source("factconsolidation_mh_6k") is PAPER_CR_PROMPT
+    assert "label: {label}" in PAPER_ICL_PROMPT  # illustrative, not a {question} sub
+    import pytest as _pytest
+    with _pytest.raises(KeyError):
+        prompt_for_source("unknown_source")
+
+
+# --- LLM judge (longmemeval), fully offline -----------------------------------
+def test_get_anscheck_prompt_dispatches_by_task():
+    from mab.grading.paper_llm_judge import get_anscheck_prompt
+    base = get_anscheck_prompt("multi-session", "Q?", "GOLD", "RESP")
+    assert "Q?" in base and "GOLD" in base and "RESP" in base and "yes or no only" in base.lower()
+    temporal = get_anscheck_prompt("temporal-reasoning", "Q?", "18", "19")
+    assert "off-by-one" in temporal  # temporal task tolerates off-by-one
+    abst = get_anscheck_prompt("multi-session", "Q?", "expl", "RESP", abstention=True)
+    assert "unanswerable" in abst
+    import pytest as _pytest
+    with _pytest.raises(NotImplementedError):
+        get_anscheck_prompt("bogus-task", "Q", "A", "R")
+
+
+@pytest.mark.asyncio
+async def test_longmem_judge_maps_yes_no():
+    from mab.grading.paper_llm_judge import LongmemJudge
+    seen = {}
+
+    async def fake_yes(prompt, model):
+        seen["prompt"], seen["model"] = prompt, model
+        return "Yes"
+
+    async def fake_no(prompt, model):
+        return "No, the response is incorrect."
+
+    j_yes = LongmemJudge(fake_yes, model="gpt-4o")
+    r = await j_yes.judge("Where?", "Paris", "It is Paris.", "multi-session")
+    assert r.correct is True and r.matched_gold == "Paris"
+    assert "Paris" in seen["prompt"] and seen["model"] == "gpt-4o"  # question/gold/answer + model wired
+
+    r2 = await LongmemJudge(fake_no).judge("Where?", "Paris", "I don't know.", "multi-session")
+    assert r2.correct is False
+
+
+# --- answer-only replay -------------------------------------------------------
+class _FakeMethod:
+    """Records answer prompts; has NO ingest/consolidate (answer-only must not call them)."""
+
+    def __init__(self, reply="It is paris."):
+        self.prompts: list[str] = []
+        self._reply = reply
+
+    async def answer(self, prompt):
+        self.prompts.append(prompt)
+        return AnswerResult(text=self._reply, input_tokens=5, output_tokens=2)
+
+
+def _inst():
+    return MabInstance(
+        competency=Competency.CONFLICT_RESOLUTION, source="factconsolidation_sh_6k",
+        instance_id="factconsolidation_sh_6k#0",
+        context="ctx",
+        questions=[
+            Question(prompt="capital of France?", gold_answers=["Paris"], metric="substring_exact_match"),
+            Question(prompt="capital of Italy?", gold_answers=["Rome"], metric="substring_exact_match"),
+        ],
+    )
+
+
+@pytest.mark.asyncio
+async def test_answer_only_answers_each_question_under_paper_prompt():
+    method = _FakeMethod(reply="Paris")
+    results = await answer_only(method, _inst(), PAPER_CR_PROMPT, PaperSubstringExactMatch())
+    assert len(results) == 2
+    # both questions were framed with the PAPER prompt (serial-number rule present)
+    assert all("serial number" in p for p in method.prompts)
+    assert "capital of France?" in method.prompts[0]
+    # graded: Q0 gold Paris -> correct; Q1 gold Rome -> wrong (answer was "Paris")
+    assert results[0].correct is True and results[1].correct is False
+    assert results[0].golds == ["Paris"]
+
+
+@pytest.mark.asyncio
+async def test_answer_only_records_error_not_silent_zero():
+    class Boom:
+        async def answer(self, prompt):
+            raise RuntimeError("recall failed")
+
+    results = await answer_only(Boom(), _inst(), PAPER_CR_PROMPT, PaperSubstringExactMatch())
+    assert len(results) == 2
+    assert all(r.error and not r.correct for r in results)
+    assert "recall failed" in results[0].error
+
+
+# --- paper-faithful run path (per-source prompt + grader) ---------------------
+@pytest.mark.asyncio
+async def test_grade_paper_dispatches_algorithmic_and_llm():
+    from mab.grading.paper_grader import IclExactMatch  # noqa: F401 (import sanity)
+    from mab.paper_run import grade_paper
+
+    q_ev = Question(prompt="then?", gold_answers=["A", "B"], metric="substring_exact_match")
+    assert await grade_paper("eventqa_65536", q_ev, "A then B", None) is True
+    assert await grade_paper("eventqa_65536", q_ev, "only A", None) is False
+
+    q_lm = Question(prompt="Where?", gold_answers=["Paris"], metric="substring_exact_match",
+                    question_type="multi-session", qa_pair_id="lm_1")
+
+    async def yes(prompt, model):
+        return "Yes"
+
+    assert await grade_paper("longmemeval_s*", q_lm, "It is Paris.", yes) is True
+    # longmemeval without a completer must error, not silently pass
+    with pytest.raises(RuntimeError):
+        await grade_paper("longmemeval_s*", q_lm, "It is Paris.", None)
+
+
+class _IngestMethod:
+    """Fake method recording lifecycle; answers a fixed reply."""
+
+    def __init__(self, reply="A then B"):
+        self.calls: list[str] = []
+        self.prompts: list[str] = []
+        self._reply = reply
+
+    async def ingest(self, inst):
+        self.calls.append("ingest")
+        return IngestStats(chunks_sent=1, chunks_truncated=0)
+
+    async def consolidate(self):
+        self.calls.append("consolidate")
+        return True
+
+    async def answer(self, prompt):
+        self.prompts.append(prompt)
+        return AnswerResult(text=self._reply, input_tokens=1, output_tokens=1)
+
+
+def test_parse_json_extracts_last_object_or_fence():
+    from mab.grading.paper_summarization_judge import parse_json
+    assert parse_json('reasoning... the answer is {"recall": 4}') == {"recall": 4}
+    assert parse_json('```json\n{"fluency": 1}\n```') == {"fluency": 1}
+    assert parse_json("no json here") is None
+
+
+@pytest.mark.asyncio
+async def test_summarization_judge_matches_paper_formula():
+    from mab.grading.paper_summarization_judge import SummarizationJudge
+    # fluency=1, recall=4 of 8 keypoints -> 0.5, precision=3 of 6 sentences -> 0.5
+    # f1 = 1 * 2*(0.5*0.5)/(0.5+0.5) = 0.5
+    replies = ['{"fluency": 1}', 'reasoning {"recall": 4}', 'reasoning {"precision": 3, "sentence_count": 6}']
+    calls = {"i": 0}
+
+    async def seq(prompt, model):
+        r = replies[calls["i"]]; calls["i"] += 1
+        return r
+
+    j = SummarizationJudge(seq, model="gpt-4o")
+    s = await j.score("A summary.", [f"kp{i}" for i in range(8)], "Expert summary.")
+    assert s.fluency == 1 and s.recall == 0.5 and s.precision == 0.5
+    assert abs(s.f1 - 0.5) < 1e-9
+    assert calls["i"] == 3  # exactly 3 judge calls (fluency, recall, precision)
+
+
+@pytest.mark.asyncio
+async def test_summarization_fluency_gates_f1_to_zero():
+    from mab.grading.paper_summarization_judge import SummarizationJudge
+    replies = ['{"fluency": 0}', '{"recall": 8}', '{"precision": 6, "sentence_count": 6}']
+    calls = {"i": 0}
+
+    async def seq(prompt, model):
+        r = replies[calls["i"]]; calls["i"] += 1
+        return r
+
+    s = await SummarizationJudge(seq).score("x", ["a"] * 8, "y")
+    assert s.f1 == 0.0  # fluency 0 zeroes the whole score even at perfect recall/precision
+
+
+def test_persist_appends_jsonl_per_instance(tmp_path):
+    import json as _json
+
+    from mab.paper_run import _persist
+    p = str(tmp_path / "r.jsonl")
+    _persist(p, [ReplayResult("s", "s#0", "q0", "Q", "A", ["A"], True)])
+    _persist(p, [ReplayResult("s", "s#1", "q1", "Q", "B", ["C"], False, "err")])
+    lines = [_json.loads(x) for x in open(p).read().splitlines()]
+    assert len(lines) == 2                       # appended, not overwritten
+    assert lines[0]["correct"] is True and lines[0]["instance_id"] == "s#0"
+    assert lines[1]["error"] == "err"
+    _persist(None, [ReplayResult("s", "s#2", None, "Q", "", [], False)])  # no path -> no-op
+
+
+@pytest.mark.asyncio
+async def test_run_instance_paper_scores_summarization_source():
+    from mab.paper_run import run_instance_paper
+    inst = MabInstance(
+        competency=Competency.LONG_RANGE_UNDERSTANDING, source="infbench_sum_eng_shots2",
+        instance_id="infbench_sum_eng_shots2#0", context="book...",
+        questions=[Question(prompt="summarize the book", gold_answers=["Expert summary."],
+                            metric="exact_match")],
+        keypoints=[f"kp{i}" for i in range(8)],
+    )
+    method = _IngestMethod(reply="A generated book summary.")
+    # judge: fluency=1, recall=4/8=0.5, precision=3/6=0.5 -> f1 = 1*2*0.25/1 = 0.5
+    replies = ['{"fluency": 1}', '{"recall": 4}', '{"precision": 3, "sentence_count": 6}']
+    calls = {"i": 0}
+
+    async def comp(prompt, model):
+        r = replies[calls["i"]]; calls["i"] += 1
+        return r
+
+    results = await run_instance_paper(method, inst, comp)
+    assert method.calls == ["ingest", "consolidate"]      # still ingests + consolidates
+    assert len(results) == 1
+    assert abs(results[0].score - 0.5) < 1e-9              # fractional f1 stored
+    assert results[0].correct is True                     # f1>=0.5 proxy
+    assert calls["i"] == 3                                 # 3 judge calls (fluency/recall/precision)
+
+
+@pytest.mark.asyncio
+async def test_run_instance_paper_ingests_then_answers_with_paper_prompt():
+    from mab.paper_run import run_instance_paper
+    inst = MabInstance(
+        competency=Competency.ACCURATE_RETRIEVAL, source="eventqa_65536",
+        instance_id="eventqa_65536#0", context="ctx",
+        questions=[Question(prompt="then?", gold_answers=["A", "B"], metric="substring_exact_match")],
+    )
+    method = _IngestMethod(reply="A then B happened")
+    results = await run_instance_paper(method, inst)
+    assert method.calls == ["ingest", "consolidate"]           # ingested + consolidated
+    assert "event that happens next" in method.prompts[0]       # paper eventqa prompt used
+    assert results[0].correct is True                           # both gold elems present

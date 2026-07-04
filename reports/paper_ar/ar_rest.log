@@ -1,0 +1,8 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+sources=['eventqa_131072', 'eventqa_full', 'longmemeval_s*', 'ruler_qa2_421K'] instances=4 questions=32
+ingest settle timed out after 1800.0s
+ingest truncated 1202 chunks (cap 80) for longmemeval_s*#17
+POST /chat failed (server 500); retry 1/6 in 5s
+POST /chat failed (server 500); retry 1/6 in 5s
+POST /chat failed (server 500); retry 1/6 in 5s
+ingest settle timed out after 1800.0s

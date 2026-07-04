@@ -1,0 +1,5 @@
+sources=['eventqa_131072', 'eventqa_full', 'longmemeval_s*', 'ruler_qa1_197K', 'ruler_qa2_421K'] instances=1 questions=8
+ingest settle timed out after 1800.0s
+  ruler_qa1_197K           PAPER 7/8 = 0.875   errored=0
+
+AR paper-faithful: 7/8 = 0.875

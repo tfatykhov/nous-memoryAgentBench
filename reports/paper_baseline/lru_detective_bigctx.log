@@ -1,0 +1,6 @@
+[long_range_understanding] config=configs/prod_memory_bigctx.env instances=10 questions=68
+persisting to: reports/paper_baseline/results_long_range_understanding_detective_qa.jsonl
+
+  detective_qa                     PAPER 56/68 = 0.824   errored=0
+
+long_range_understanding paper-faithful (binary sources): 56/68 = 0.824

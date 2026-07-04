@@ -48,6 +48,9 @@ class MabInstance(BaseModel):
     # Pre-chunked conversational turns when MAB provides them (longmemeval-style
     # rows); empty for ruler/eventqa where ``context`` is a monolithic document.
     haystack_turns: list[dict] = Field(default_factory=list)
+    # infbench_sum (LRU summarization): reference key points the summary is judged
+    # against (paper's recall metric). Empty for all other sources.
+    keypoints: list[str] = Field(default_factory=list)
 
     @property
     def context_chars(self) -> int:
