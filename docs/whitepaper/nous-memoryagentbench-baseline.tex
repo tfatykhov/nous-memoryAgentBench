@@ -252,7 +252,15 @@ Test-Time Learning        & \textbf{0.555} & 200 & [0.486, 0.624] & 0.539 --- at
 0 execution errors on all final runs). LRU is detective-QA; the auxiliary
 InfBench-Sum summarization judge scored f1 = 0.592 on a single 1.75M-char book
 (unfirmed, $n{=}1$). ``Best published avg.'' is the strongest per-competency
-average across all methods in the benchmark's results table.}
+average across all methods in the benchmark's results table.
+\emph{Comparability tiers:} AR, CR, and LRU are \textbf{T1} (paper's exact
+prompt/grader/questions; sole deviation is ingestion transport, Section~
+\ref{sec:threats}); TTL is \textbf{T2} (T1 plus a deliberate, conservative
+label-parsing choice in the ICL grader). No single aggregate score is
+published: TTL omits recsys (grader data file not publicly shipped), and the
+giant AR/LRU sources are measured at 1 context each. The repository's
+\texttt{BASELINE\_SUMMARY.md} reconciles every number here to its committed
+per-question evidence file, tier, and missing-components list.}
 \label{tab:results}
 \end{table}
 
