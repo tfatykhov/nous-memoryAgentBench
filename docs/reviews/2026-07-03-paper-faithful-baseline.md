@@ -12,10 +12,16 @@ github.com/HUST-AI-HYZ/MemoryAgentBench (MIT), independently reviewed.
 
 | Competency | Score | n | Field band | Placement |
 |---|---|---|---|---|
-| Conflict Resolution | **0.766** | 64 | 5–33% | above |
-| Accurate Retrieval | **0.844** | 64 | 33–72% | above |
-| Test-Time Learning | **0.650** | 40 | 12–54% | above |
-| Long-Range Understanding | **0.833** (detective) · **0.592 f1** (infbench_sum) | 6 + 1 | 16–62% | above |
+| Conflict Resolution | **0.766** | 64 | 5–33% | above (large margin) |
+| Accurate Retrieval | **0.844** | 64 | 33–72% | above (firm up n) |
+| Test-Time Learning | **0.555** (CI [0.49,0.62]) | 200 | 12–54% | **AT ceiling — not clearly above** |
+| Long-Range Understanding | **0.833** (detective) · **0.592 f1** (infbench_sum) | 6 + 1 | 16–62% | n too small — re-measuring |
+
+**UPDATE 2026-07-04 — sampling correction:** TTL re-measured at n=40/source (200 total) fell
+from the optimistic n=8 baseline of 0.650 to **0.555**, CI [0.486, 0.624] straddling the 54%
+field top. Small-n point estimates here run optimistic (trec_fine 0.625→0.450), so LRU (n=6)
+is being re-measured before any claim, and AR should be firmed up. CR/AR retain large enough
+margins to clear field even at their lower CIs; TTL does not.
 
 Per-source:
 - CR (factconsolidation): 0.766 overall; single-hop 0.906, multi-hop 0.625 (field multi-hop <7%).

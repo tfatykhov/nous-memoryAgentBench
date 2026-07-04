@@ -56,6 +56,8 @@ async def main() -> int:
 
     import os
     os.makedirs("reports/paper_baseline", exist_ok=True)
+    open(results_path, "w").close()  # fresh file per run: _persist appends, and a
+    # same-source rerun reuses this tag -> without truncation it mixes runs (dup rows).
     async with httpx.AsyncClient() as judge_client:
         completer = openai_completer(_openai_key(), judge_client)
         results = await run_paper_faithful(settings, config, instances, completer, results_path=results_path)
