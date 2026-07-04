@@ -34,9 +34,12 @@ On the evaluated subsets, \nous{} scores
 \textbf{CR 0.766} (n=64),
 \textbf{LRU 0.824} (n=68, CI [0.73, 0.91]),
 and \textbf{TTL 0.555} (n=200, CI [0.49, 0.62]).
-The first three are robustly above every method reported by the benchmark
-(best published per-competency averages: 71.8\%, 29.5\%, 62.2\% respectively);
-TTL sits at the top of the published range (53.9\%) but does not clearly exceed it.
+The first three are robustly above every method in the benchmark paper's
+results (best per-competency averages there: 71.8\%, 29.5\%, 62.2\%); TTL sits
+at the top of that range (53.9\%). Against the 2026 field (full-benchmark
+results reported by Infini Memory with a gpt-5-mini base), the honest placement
+is: above the best reported Accurate Retrieval, second on Conflict Resolution,
+comparable on Long-Range Understanding, and behind on Test-Time Learning.
 We describe the testing technique, a statistical-validation pass that materially
 corrected one competency's initial estimate, and the threats to validity that
 qualify a direct leaderboard comparison.
@@ -270,12 +273,13 @@ reports at most $\sim$7\% for multi-hop across all its methods); AR eventqa
 0.875; TTL banking77 0.525, clinic150 0.500, nlu 0.425, trec-coarse 0.875,
 trec-fine 0.450; LRU detective 56/68.
 
-\subsection{Comparison with the field}
+\subsection{Comparison with the benchmark paper's field (2025)}
 
 Table~\ref{tab:field} reproduces the per-competency averages of representative
 methods from the benchmark's results table (its Table~3; the fourth competency
 is named Selective Forgetting there and Conflict Resolution in earlier
-versions---same datasets).
+versions---same datasets). These rows date from the benchmark paper; the 2026
+field is covered in Section~\ref{sec:field2026}.
 
 \begin{table}[h]
 \centering
@@ -304,25 +308,76 @@ the subset sizes.}
 \label{tab:field}
 \end{table}
 
-Three observations:
+Three observations against the paper's table:
 \begin{enumerate}
-  \item \textbf{Conflict Resolution is the standout.} \nous{} scores 0.766
-        where no published method exceeds 0.295, and 0.625 on multi-hop
-        conflict composition where the field is at most $\sim$0.07. We
-        attribute this to \nous{}'s explicit fact store with update semantics:
-        conflicting facts are extracted, linked, and consolidated during
-        sleep, rather than left as contradictory passages for retrieval to
-        stumble over.
+  \item \textbf{Conflict Resolution is the standout vs.\ the 2025 field.}
+        \nous{} scores 0.766 where no method in the paper exceeds 0.295, and
+        0.625 on multi-hop conflict composition where that field is at most
+        $\sim$0.07. We attribute this to \nous{}'s explicit fact store with
+        update semantics: conflicting facts are extracted, linked, and
+        consolidated during sleep, rather than left as contradictory passages
+        for retrieval to stumble over.
   \item \textbf{Retrieval and long-range understanding benefit from
         full-fidelity chunk memory.} AR 0.897 and LRU 0.824 exceed both the
         RAG family and the long-context family, including on 1.6--2.3M-char
         inputs that no context window holds.
   \item \textbf{Test-time learning is the honest gap.} TTL 0.555 edges the
-        best field value (0.539) but the CI straddles it. Learning a
+        best value in the paper (0.539) but the CI straddles it. Learning a
         classification skill from thousands of in-context examples is not
         what an episodic/semantic memory is optimized for; accuracy here
         tracks how many labeled exemplars retrieval can surface per query.
 \end{enumerate}
+
+\subsection{Comparison with the 2026 field}
+\label{sec:field2026}
+
+The field has moved since the benchmark paper. Infini Memory~\cite{infini}
+(2026) re-evaluated a modern method suite on the full benchmark with
+gpt-5-mini as the base model, 4096-token ingestion chunks, and a gpt-5
+LLM-as-judge protocol. Table~\ref{tab:field2026} reproduces its results.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Method (gpt-5-mini base) & AR & TTL & LRU & CR/SF \\
+\midrule
+Mem0        & 28.0 & 36.0 & 42.0 & 35.5 \\
+RAPTOR      & 32.0 & 39.0 & 38.2 & 48.2 \\
+MemoRAG     & 35.0 & 36.0 & 25.0 & 54.4 \\
+MemGPT      & 49.0 & 30.0 & 42.7 & 45.6 \\
+LightMem    & 57.0 & 34.0 & 69.2 & 39.2 \\
+REMem       & 62.0 & 42.0 & 62.3 & 41.2 \\
+HippoRAG-v2 & 78.0 & 70.0 & 54.7 & 72.2 \\
+Infini Memory-H & 77.0 & 76.0 & 76.0 & 83.0 \\
+Infini Memory-A & \textbf{83.0} & \textbf{79.0} & \textbf{79.3} & \textbf{83.6} \\
+\midrule
+\textbf{\nous{}} (this work, slices) & \textbf{89.7} & 55.5 & 82.4$^{\dagger}$ & 76.6 \\
+\bottomrule
+\end{tabular}
+\caption{The 2026 field, as reported by Infini Memory~\cite{infini} (full
+benchmark; per-competency averages, \%). Cross-comparison caveats beyond
+Section~\ref{sec:threats}: the 2026 numbers use a gpt-5 \emph{LLM-judge for
+all tasks} rather than the benchmark's official per-dataset graders (LLM
+judges are typically more lenient than substring matching), their TTL
+includes recsys and their LRU includes full summarization (ours do not), and
+our numbers are slices, not the full benchmark.
+$^{\dagger}$detective-QA only.}
+\label{tab:field2026}
+\end{table}
+
+The honest read against the 2026 frontier: \nous{}'s AR slice (0.897) remains
+above the best reported value (0.830); CR (0.766) is second to Infini
+Memory-A (0.836) and above everything else; LRU (0.824, detective only) is
+comparable to the leader (0.793, incl.\ summarization); and \textbf{TTL
+(0.555) is clearly behind the 2026 leaders} (0.70--0.79, though those include
+recsys and a more lenient judge). The 2025-table margins (Table~\ref{tab:field})
+substantially reflect the base-model generation; against contemporaries,
+\nous{} is competitive-to-leading on retrieval and conflict handling and
+behind on test-time learning. A footnote on aggregates: Infini Memory's own
+abstract reports 64.7\% overall while its results table's competency average
+is 81.2\% --- aggregation-method ambiguity even within one paper, which is
+why we publish no aggregate.
 
 \section{Threats to Validity}
 \label{sec:threats}
@@ -372,15 +427,14 @@ Three observations:
         system.
   \item \textbf{Judge sharing.} LongMemEval and InfBench-Sum scores depend on
         GPT-4o judges, as in the benchmark.
-  \item \textbf{The comparison target is the benchmark paper's table, not the
-        2026 field frontier.} Table~\ref{tab:field} reproduces the methods the
-        benchmark's authors evaluated (2025). Newer systems report
-        full-benchmark figures on \mab{} --- e.g.\ Infini Memory~\cite{infini}
-        reports 64.7\% overall --- which are \emph{not} comparable to any
-        aggregate of our per-slice numbers (different coverage: recsys and
-        most summarization absent here, giant sources at one instance). We
-        therefore make no claim relative to post-paper systems, and no
-        state-of-the-art claim.
+  \item \textbf{The 2026 comparison is as-reported, not re-run.}
+        Table~\ref{tab:field2026} takes the 2026 numbers from the Infini
+        Memory paper~\cite{infini} at face value; we did not reproduce them.
+        Their protocol differs from the benchmark's official grading (gpt-5
+        LLM-judge for all tasks, typically more lenient than substring
+        graders; 4096-token chunks) and from ours, and their coverage is the
+        full benchmark where ours is slices. Per-competency comparison is
+        indicative, not exact; we make no state-of-the-art claim.
 \end{enumerate}
 
 \section{Conclusion}
@@ -388,18 +442,22 @@ Three observations:
 On the sampled, paper-aligned slices and under the benchmark's exact grading,
 \nous{} exceeds every method reported in the \mab{} paper on three of four
 memory competencies---Accurate Retrieval (0.897), Conflict Resolution (0.766,
-a 2.6$\times$ margin over the best published average), and Long-Range
-Understanding (0.824)---and matches the best reported value on Test-Time
-Learning (0.555). This is evidence of strong memory behavior on those slices,
-not a claim of state-of-the-art or official-benchmark superiority
-(Section~\ref{sec:threats}, items 2 and 6). The conflict-resolution result in
-particular suggests that an explicit extract-link-consolidate memory
-architecture addresses a failure mode that both long-context and RAG systems
-share, and the evidence justifies full-benchmark evaluation as the next step.
-The evaluation harness, vendored graders, pinned configuration, and
-per-question result records are available in the project repository; the
-repository's \texttt{BASELINE\_SUMMARY.md} reconciles every number to its
-evidence file and comparability tier.
+a 2.6$\times$ margin over that table's best), and Long-Range Understanding
+(0.824)---and matches that table's best Test-Time Learning (0.555). Against
+the 2026 field (Section~\ref{sec:field2026}, as reported by Infini Memory
+with a gpt-5-mini base and a more lenient judge protocol), the honest
+placement is: \textbf{leading on retrieval} (AR slice above the best 2026
+value), \textbf{second on conflict resolution} (0.766 vs.\ 0.836),
+\textbf{comparable on long-range understanding}, and \textbf{behind on
+test-time learning}. None of this is a state-of-the-art or
+official-benchmark claim (Section~\ref{sec:threats}, items 2 and 6). The
+conflict-resolution result still suggests that an explicit
+extract-link-consolidate memory architecture addresses a failure mode most
+retrieval systems share, and the clear TTL gap identifies where \nous{}
+should improve next; both justify a full-benchmark evaluation. The harness,
+vendored graders, pinned configuration, and per-question result records are
+available in the project repository; \texttt{BASELINE\_SUMMARY.md} reconciles
+every number to its evidence file and comparability tier.
 
 \begin{thebibliography}{9}
 \bibitem{mab}
