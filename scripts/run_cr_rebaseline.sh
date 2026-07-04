@@ -5,7 +5,7 @@
 #
 # Prereqs: ../nous checked out to origin/main (has date-leg F075/F076); eval DB
 # nous_mab migrated & running on :5433.
-set -uo pipefail
+set -euo pipefail  # -e: a failed mab.cli run must fail this script (no silent exit 0)
 cd "$(dirname "$0")/.." || exit 1
 
 export MAB_NOUS_REPO=../nous

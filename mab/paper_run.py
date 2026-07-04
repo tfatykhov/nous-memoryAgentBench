@@ -12,6 +12,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
+import os
 import uuid
 
 import httpx
@@ -53,8 +54,12 @@ async def run_instance_paper(
     prompt = prompt_for_source(inst.source)
     is_summ = "infbench_sum" in inst.source.lower()
     stats = await method.ingest(inst)  # self-audit: stamp chunks_sent/truncated on every row
-    audit = {"chunks_sent": stats.chunks_sent, "chunks_truncated": stats.chunks_truncated}
-    await method.consolidate()  # runs settings.sleep_cycles internally
+    consolidated = await method.consolidate()  # runs settings.sleep_cycles internally
+    settled = bool(stats.settled) and bool(consolidated)
+    if not settled:  # memory may be incompletely written — flag every row, don't hide it
+        logger.warning("instance %s: ingest/consolidation did NOT settle", inst.instance_id)
+    audit = {"chunks_sent": stats.chunks_sent, "chunks_truncated": stats.chunks_truncated,
+             "ingest_settled": settled}
     results: list[ReplayResult] = []
     for q in inst.questions:
         try:
@@ -87,6 +92,9 @@ def _persist(results_path: str | None, rows: list[ReplayResult]) -> None:
     the sources it already finished."""
     if not results_path:
         return
+    parent = os.path.dirname(results_path)
+    if parent:  # first append on a clean checkout must not FileNotFoundError
+        os.makedirs(parent, exist_ok=True)
     with open(results_path, "a", encoding="utf-8") as f:
         for r in rows:
             f.write(json.dumps(dataclasses.asdict(r)) + "\n")

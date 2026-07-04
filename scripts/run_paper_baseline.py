@@ -25,11 +25,22 @@ from mab.grading.paper_llm_judge import openai_completer
 from mab.paper_run import run_paper_faithful
 
 
-def _openai_key() -> str:
-    for line in open("../nous/.env", encoding="utf-8", errors="ignore"):
-        if line.startswith("OPENAI_API_KEY"):
-            return line.split("=", 1)[1].strip().strip('"').strip("'")
-    raise RuntimeError("OPENAI_API_KEY not found in ../nous/.env")
+def _openai_key() -> str | None:
+    """Judge key: environment first, then ../nous/.env; None if absent.
+
+    None is fine for sources that never invoke the LLM judge (eventqa/ruler/
+    icl/detective/CR) — paper_run raises only if a judge source needs it.
+    """
+    import os
+    if os.environ.get("OPENAI_API_KEY"):
+        return os.environ["OPENAI_API_KEY"]
+    try:
+        for line in open("../nous/.env", encoding="utf-8", errors="ignore"):
+            if line.startswith("OPENAI_API_KEY"):
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return None
 
 
 async def main() -> int:
@@ -69,12 +80,19 @@ async def main() -> int:
             "max_questions_per_instance": max_q,
         }, mf, indent=2)
     async with httpx.AsyncClient() as judge_client:
-        completer = openai_completer(_openai_key(), judge_client)
+        key = _openai_key()
+        completer = openai_completer(key, judge_client) if key else None
         results = await run_paper_faithful(settings, config, instances, completer, results_path=results_path)
 
     # TRUNCATION GATE: a wrong answer on a truncated instance may mean the answer
     # text was never ingested (infra failure, not memory failure). Split those
     # instances OUT of the headline and report them separately, loudly.
+    # SETTLE FLAG (warn-only): unsettled instances stay in the headline (an
+    # unsettled write is nous's failure to absorb) but must be visible.
+    unsettled = sorted({r.instance_id for r in results if r.ingest_settled is False})
+    if unsettled:
+        print(f"\n!! UNSETTLED INSTANCES (memory may be incompletely written): {unsettled}", flush=True)
+
     truncated_insts = sorted({r.instance_id for r in results if (r.chunks_truncated or 0) > 0})
     if truncated_insts:
         print(f"\n!! TRUNCATED INSTANCES EXCLUDED FROM HEADLINE ({len(truncated_insts)}):", flush=True)

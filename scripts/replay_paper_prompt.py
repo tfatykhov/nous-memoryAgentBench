@@ -1,4 +1,8 @@
-"""Replay the persisted CR memory under the PAPER's answer prompt + grader.
+"""HISTORICAL (2026-07-03): produced the CR 49/64 = 0.766 evidence (reports/paper_replay/run.log).
+Use scripts/run_paper_baseline.py for new runs - this script buckets agents by stored
+chunk count and assumes only CR agents exist under the prefix (fragile if reused).
+
+Replay the persisted CR memory under the PAPER's answer prompt + grader.
 
 Re-answers each CR instance's already-built memory (from the last `run`) with the
 MemoryAgentBench factconsolidation prompt, graded by the paper's grader — no

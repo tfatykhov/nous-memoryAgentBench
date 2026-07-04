@@ -21,11 +21,19 @@ from mab.grading.paper_llm_judge import openai_completer
 from mab.paper_run import run_paper_faithful
 
 
-def _openai_key() -> str:
-    for line in open("../nous/.env", encoding="utf-8", errors="ignore"):
-        if line.startswith("OPENAI_API_KEY"):
-            return line.split("=", 1)[1].strip().strip('"').strip("'")
-    raise RuntimeError("OPENAI_API_KEY not found in ../nous/.env")
+def _openai_key() -> str | None:
+    """Judge key: environment first, then ../nous/.env; None if absent (only
+    longmemeval sources need it — paper_run raises lazily when judging)."""
+    import os
+    if os.environ.get("OPENAI_API_KEY"):
+        return os.environ["OPENAI_API_KEY"]
+    try:
+        for line in open("../nous/.env", encoding="utf-8", errors="ignore"):
+            if line.startswith("OPENAI_API_KEY"):
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return None
 
 
 async def main() -> int:
@@ -49,7 +57,8 @@ async def main() -> int:
     results_path = f"reports/paper_ar/results_{'-'.join(s[:12] for s in sources)}.jsonl"
     print(f"per-instance results persisted to: {results_path}", flush=True)
     async with httpx.AsyncClient() as judge_client:
-        completer = openai_completer(_openai_key(), judge_client)
+        key = _openai_key()
+        completer = openai_completer(key, judge_client) if key else None
         results = await run_paper_faithful(
             settings, config, instances, completer, results_path=results_path
         )

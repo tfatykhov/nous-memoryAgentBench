@@ -127,6 +127,14 @@ def load_competency(
         prompts = row.get("questions") or []
         answers = row.get("answers") or []
         qa_pair_ids = metadata.get("qa_pair_ids") or []
+        # longmemeval carries its upstream evaluator IDs in a SEPARATE key,
+        # metadata['question_ids'] — and that is where the '_abs' abstention
+        # marker lives (the paper judges abstention questions with a different
+        # prompt). Prefer it when present so `'_abs' in qa_pair_id` works;
+        # qa_pair_ids remains the fallback for every other source.
+        question_ids = metadata.get("question_ids") or []
+        if question_ids:
+            qa_pair_ids = question_ids
         question_types = metadata.get("question_types") or []
 
         questions: list[Question] = []

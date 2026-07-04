@@ -41,6 +41,10 @@ class ReplayResult:
     # never ingested, which is an infra failure, not a memory failure.
     chunks_sent: int | None = None
     chunks_truncated: int | None = None
+    # False when ingest/consolidation did NOT settle before its timeout (memory
+    # may be incompletely written). Health flag: reports must surface it; rows
+    # still count against nous (an unsettled write is nous's failure to absorb).
+    ingest_settled: bool | None = None
 
 
 async def answer_only(
