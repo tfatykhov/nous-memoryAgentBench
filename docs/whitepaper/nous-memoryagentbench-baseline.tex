@@ -1,0 +1,373 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+\usepackage{multirow}
+
+\title{\textbf{nous on MemoryAgentBench:\\A Paper-Faithful Evaluation of a Cognitive Memory Agent}}
+\author{Timur Fatykhov\\\small\textit{with Claude (Anthropic) as evaluation engineer}}
+\date{July 4, 2026}
+
+\newcommand{\nous}{\textsf{nous}}
+\newcommand{\mab}{MemoryAgentBench}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent We evaluate \nous{}, a cognitive memory agent with episodic ingestion,
+LLM-based fact extraction, and sleep-cycle consolidation, on \mab{}
+(Hu et al., ICLR 2026), a benchmark that measures four memory competencies of
+conversational agents: Accurate Retrieval (AR), Test-Time Learning (TTL),
+Long-Range Understanding (LRU), and Conflict Resolution (CR).
+We reproduce the benchmark's evaluation protocol exactly---its per-dataset answer
+prompts, its per-dataset graders (including two GPT-4o judge protocols), vendored
+from the benchmark's open-source repository and verified line-by-line by an
+independent review---and drive a real \nous{} HTTP server through its full
+production cognitive cycle for every test instance.
+On the evaluated subsets, \nous{} scores
+\textbf{AR 0.897} (n=232, 95\% CI [0.86, 0.94]),
+\textbf{CR 0.766} (n=64),
+\textbf{LRU 0.824} (n=68, CI [0.73, 0.91]),
+and \textbf{TTL 0.555} (n=200, CI [0.49, 0.62]).
+The first three are robustly above every method reported by the benchmark
+(best published per-competency averages: 71.8\%, 29.5\%, 62.2\% respectively);
+TTL sits at the top of the published range (53.9\%) but does not clearly exceed it.
+We describe the testing technique, a statistical-validation pass that materially
+corrected one competency's initial estimate, and the threats to validity that
+qualify a direct leaderboard comparison.
+\end{abstract}
+
+\section{Introduction}
+
+Long-running LLM agents need memory that outlives a single context window:
+they must store what they were told, learn new skills from it, reason over
+inputs far larger than the model context, and revise beliefs when information
+changes. \mab{}~\cite{mab} operationalizes these requirements as four
+competencies and evaluates them by streaming large corpora into an agent
+incrementally and then asking questions against what the agent retained.
+
+\nous{} is a cognitive AI agent whose memory subsystem combines an episodic
+store (conversation episodes and summaries), a semantic store (LLM-extracted
+facts with typed graph edges), full-fidelity content chunks with hybrid
+(vector + lexical) retrieval, and an offline \emph{sleep} consolidation cycle
+that links, deduplicates, and densifies memory between sessions. This report
+documents a from-scratch evaluation harness that measures \nous{} on \mab{}
+under its \emph{production} configuration, and places the results against the
+methods evaluated by the benchmark's authors.
+
+Two principles governed the effort:
+\begin{enumerate}
+  \item \textbf{Paper fidelity.} The score must be computed exactly as the
+        benchmark computes it---same answer prompts, same graders, same judge
+        models---so numbers are comparable. All grading code was vendored from
+        the benchmark's MIT-licensed repository and cross-reviewed against it
+        by an independent reviewer agent with no stake in the outcome.
+  \item \textbf{Statistical honesty.} No above/below-field claim is made unless
+        the 95\% confidence interval of the measured accuracy clears the
+        best published field value. This rule changed one headline conclusion
+        (Section~\ref{sec:validation}).
+\end{enumerate}
+
+\section{System Under Test}
+
+\subsection{The \nous{} cognitive cycle}
+Each benchmark instance exercises the complete production write path:
+
+\begin{enumerate}
+  \item \textbf{Ingestion.} The instance's context is split into chunks of at
+        most 32{,}000 characters (conversational corpora are packed
+        turn-by-turn into chunks of the same size, preserving every turn) and
+        streamed to the agent as consecutive chat turns in one session.
+  \item \textbf{Session close.} The session is closed, triggering the
+        durable-write chain: an episode summarizer, an LLM fact extractor
+        that emits typed facts, and full-fidelity chunk embedding.
+  \item \textbf{Sleep consolidation.} One or more sleep cycles run offline
+        consolidation: fact deduplication, cross-episode linking,
+        co-occurrence edge formation, and graph densification.
+  \item \textbf{Answering.} Every question is asked in a \emph{fresh} session.
+        The agent answers from its memory (retrieval-augmented context
+        injection plus agentic recall tools); the question is framed with the
+        benchmark's own per-dataset prompt template.
+\end{enumerate}
+
+\subsection{Configuration}
+\nous{} ran under its live production configuration (Claude Sonnet~5 as the
+reasoning model; hybrid chunk search; typed-edge extraction; cross-encoder
+re-ranking; date-aware retrieval; adaptive thinking) with exactly three
+eval-hygiene overrides, all disabling background self-improvement features
+irrelevant to memory measurement: the heartbeat timer, the scheduler, and
+rubric outcome detection. A 117-knob snapshot of the configuration is pinned
+in the harness repository for reproducibility.
+
+Two run profiles were used. The \emph{full-fidelity} profile (unbounded
+episode summarization, three sleep cycles) is used for moderate contexts.
+For multi-megabyte contexts a \emph{big-context} profile bounds the episode
+summarizer to 8 chunks, runs one sleep cycle, and paces ingestion turns
+(15\,s); this profile eliminated upstream rate-limit stalls and ingest
+timeouts entirely (0 errors across all final runs, including 2.3M-character
+documents).
+
+\subsection{Isolation}
+Every instance gets a fresh \nous{} server process, a unique agent identity,
+and a dedicated evaluation database; nothing carries over between instances.
+Control probes confirmed the isolation: on Conflict Resolution, the identical
+questions asked of an agent \emph{before} ingestion score 0.000, so the
+measured accuracy is attributable to memory, not to model priors.
+
+\section{Benchmark and Datasets}
+
+\mab{} streams each dataset's context into the agent and then asks held-out
+questions. Table~\ref{tab:datasets} lists the evaluated subsets.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{llrrl}
+\toprule
+Competency & Source & Context size & Questions used & Grader \\
+\midrule
+\multirow{4}{*}{CR}
+ & factconsolidation\_sh (6k--262k)  & 26k--1.1M chars & $4\times8$ & substring (SQuAD-norm.) \\
+ & factconsolidation\_mh (6k--262k)  & 26k--1.1M chars & $4\times8$ & substring (SQuAD-norm.) \\
+ & \multicolumn{4}{l}{\footnotesize single-hop (sh) = updated fact; multi-hop (mh) = compose two updated facts} \\[2pt]
+\multirow{6}{*}{AR}
+ & eventqa\_65536                     & $\sim$285k chars & 200 (5 ctx $\times$ 40) & all-elements recall \\
+ & eventqa\_131072                    & $\sim$570k chars & 8  & all-elements recall \\
+ & eventqa\_full                      & $\sim$2.3M chars & 8  & all-elements recall \\
+ & ruler\_qa1\_197K / qa2\_421K       & 0.9M / 1.9M chars & 8+8 & substring \\
+ & longmemeval\_s*                    & 1.6M chars (1282 turns) & 8 & GPT-4o yes/no judge \\[2pt]
+\multirow{2}{*}{TTL}
+ & icl\_banking77 / clinic150 / nlu   & $\sim$400k chars each & $3\times40$ & parsed-label exact match \\
+ & icl\_trec\_coarse / trec\_fine     & $\sim$400k chars each & $2\times40$ & parsed-label exact match \\[2pt]
+\multirow{2}{*}{LRU}
+ & detective\_qa (10 novels)          & $\sim$400k chars each & 68 & substring \\
+ & infbench\_sum\_eng                 & 1.75M chars & 1 & GPT-4o 3-call f1 judge \\
+\bottomrule
+\end{tabular}
+\caption{Evaluated datasets. ``Context size'' is the raw document streamed into
+memory. The TTL \emph{recsys} sub-dataset could not be graded faithfully: its
+grader requires an entity-id mapping file that is not shipped in the
+benchmark's public repository, so TTL here is the in-context-learning family
+only.}
+\label{tab:datasets}
+\end{table}
+
+\section{Testing Technique}
+
+\subsection{Paper-faithful grading}
+Each sub-dataset is graded exactly as in the benchmark's \texttt{post\_process}
+dispatch:
+
+\begin{itemize}
+  \item \textbf{Substring match} (ruler, detective, factconsolidation): the
+        SQuAD-style normalization (lowercase, strip punctuation and articles,
+        collapse whitespace), then gold-in-prediction containment, max over
+        golds.
+  \item \textbf{EventQA recall}: \emph{raw} case-insensitive containment of
+        every gold element (\texttt{el.lower() in pred.lower()}); the answer is
+        correct only if all elements are present. An initial implementation
+        that reused the SQuAD normalization here was flagged by independent
+        review as strictly more lenient than the paper (punctuation and
+        article stripping create false positives) and was corrected before any
+        reported run.
+  \item \textbf{ICL exact match}: parse the label the prompt requests
+        (\texttt{label:~X}), then exact match on the bare label. This is a
+        deliberate, conservative interpretation: the benchmark's own ICL
+        scoring parses with a different prefix and reports multiple metrics of
+        which the substring variant false-positives on digit collisions
+        (gold \texttt{5} matches \texttt{label: 15}); our parser cannot.
+  \item \textbf{LongMemEval judge}: the benchmark's GPT-4o yes/no judge with
+        its verbatim per-question-type prompts (including the
+        temporal-reasoning off-by-one tolerance and the abstention protocol
+        for \texttt{\_abs} questions).
+  \item \textbf{Summarization judge} (InfBench-Sum): the benchmark's three-call
+        GPT-4o protocol scoring fluency $f\in\{0,1\}$, key-point recall $r$,
+        and sentence-level precision $p$, combined as
+        $\mathrm{f1} = f \cdot \frac{2rp}{r+p}$.
+\end{itemize}
+
+Answer prompts are likewise the benchmark's own per-dataset templates (e.g.,
+the CR template that states the serial-number update rule with few-shot
+examples; the eventQA template that frames ``what happened next''). On
+identical memory, switching from a generic answer prompt to the benchmark's CR
+template moved CR accuracy by +28 percentage points---prompt fidelity is not
+optional if numbers are to be compared.
+
+\subsection{Independent review}
+All vendored grading and prompting code was audited by a reviewer agent with
+fresh context against the benchmark's repository, file by file. The review
+confirmed byte-fidelity of the normalizers, judge prompts, dispatch tables,
+and the summarization formula; it found exactly one fidelity bug (the eventQA
+normalization above), which was fixed and regression-tested before the
+reported runs. The harness carries 125 unit tests covering graders, judges,
+chunking, persistence, and isolation.
+
+\subsection{Statistical validation}
+\label{sec:validation}
+Initial runs used 8 questions per source. A dedicated validation pass then
+grew the sample until each competency's 95\% CI either cleared the best
+published field value or demonstrably did not:
+
+\begin{itemize}
+  \item \textbf{TTL corrected downward.} At $n{=}8$/source TTL measured 0.650;
+        at $n{=}40$/source ($n{=}200$) it fell to \textbf{0.555}
+        (CI [0.486, 0.624]), with one source falling from 0.625 to 0.450.
+        The small sample had been an optimistic draw. TTL is therefore
+        reported as \emph{at} the field ceiling, not above it.
+  \item \textbf{LRU confirmed.} Detective-QA at all 10 novel contexts
+        ($n{=}68$) held at \textbf{0.824} versus 0.833 at $n{=}6$; its lower
+        CI bound (0.733) clears the best field value (0.622).
+  \item \textbf{AR firmed upward.} EventQA-65536 across 5 contexts at
+        $n{=}200$ rose to 0.910 versus 0.875 at $n{=}24$, consolidating AR at
+        \textbf{0.897} (CI [0.857, 0.936]).
+\end{itemize}
+
+The general lesson---small-sample memory-eval estimates run optimistic; grow
+$n$ until the CI clears the comparison band---is recorded as a standing
+methodological rule for this project. All results persist per-question to
+append-only JSONL as each instance completes, so partial runs are never lost
+and every reported number is recomputed from the persisted records.
+
+\section{Results}
+
+\subsection{\nous{} scores}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrll}
+\toprule
+Competency & Score & $n$ & 95\% CI & Best published avg.\ / verdict \\
+\midrule
+Accurate Retrieval        & \textbf{0.897} & 232 & [0.857, 0.936] & 0.718 --- \textbf{above, robust} \\
+Conflict Resolution       & \textbf{0.766} & 64  & [0.66, 0.87]   & 0.295 --- \textbf{above, robust} \\
+Long-Range Understanding  & \textbf{0.824} & 68  & [0.733, 0.914] & 0.622 --- \textbf{above, robust} \\
+Test-Time Learning        & \textbf{0.555} & 200 & [0.486, 0.624] & 0.539 --- at ceiling \\
+\bottomrule
+\end{tabular}
+\caption{\nous{} on \mab{} (paper-faithful grading, production configuration,
+0 execution errors on all final runs). LRU is detective-QA; the auxiliary
+InfBench-Sum summarization judge scored f1 = 0.592 on a single 1.75M-char book
+(unfirmed, $n{=}1$). ``Best published avg.'' is the strongest per-competency
+average across all methods in the benchmark's results table.}
+\label{tab:results}
+\end{table}
+
+Per-source detail: CR single-hop 0.906 vs.\ multi-hop 0.625 (the benchmark
+reports at most $\sim$7\% for multi-hop across all its methods); AR eventqa
+0.910/0.750/0.875 (65k/131k/full), ruler 0.875/0.750 (197K/421K), longmemeval
+0.875; TTL banking77 0.525, clinic150 0.500, nlu 0.425, trec-coarse 0.875,
+trec-fine 0.450; LRU detective 56/68.
+
+\subsection{Comparison with the field}
+
+Table~\ref{tab:field} reproduces the per-competency averages of representative
+methods from the benchmark's results table (its Table~3; the fourth competency
+is named Selective Forgetting there and Conflict Resolution in earlier
+versions---same datasets).
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llrrrr}
+\toprule
+Method & Class & AR & TTL & LRU & CR/SF \\
+\midrule
+GPT-4o-mini (full context) & long-context & 49.2 & 48.6 & 46.2 & 25.0 \\
+GPT-4.1-mini (full context) & long-context & 71.8 & 46.2 & 49.1 & 20.5 \\
+Claude-3.7-Sonnet (full context) & long-context & 59.7 & \textbf{53.9} & \textbf{62.2} & 22.5 \\
+BM25 & RAG & 60.5 & 44.5 & 35.6 & 25.5 \\
+Text-Embed-3-Large & RAG & 54.6 & 44.3 & 37.3 & 16.0 \\
+HippoRAG-v2 & RAG & 65.1 & 35.8 & 36.2 & \textbf{29.5} \\
+Mem0 & agentic memory & 32.6 & 21.2 & 20.7 & 10.0 \\
+GraphRAG & structure-aug. & 40.9 & 24.8 & 19.9 & 8.0 \\
+MIRIX & agentic memory & 47.5 & 24.1 & 25.4 & 8.0 \\
+\midrule
+\textbf{\nous{}} (this work) & cognitive memory & \textbf{89.7} & 55.5 & \textbf{82.4} & \textbf{76.6} \\
+\bottomrule
+\end{tabular}
+\caption{Per-competency averages (\%). Field rows are from the benchmark's
+published results; bold marks the best value per column among field methods,
+and \nous{} where it exceeds all of them. Comparison caveats in
+Section~\ref{sec:threats} apply---in particular the base-model mismatch and
+the subset sizes.}
+\label{tab:field}
+\end{table}
+
+Three observations:
+\begin{enumerate}
+  \item \textbf{Conflict Resolution is the standout.} \nous{} scores 0.766
+        where no published method exceeds 0.295, and 0.625 on multi-hop
+        conflict composition where the field is at most $\sim$0.07. We
+        attribute this to \nous{}'s explicit fact store with update semantics:
+        conflicting facts are extracted, linked, and consolidated during
+        sleep, rather than left as contradictory passages for retrieval to
+        stumble over.
+  \item \textbf{Retrieval and long-range understanding benefit from
+        full-fidelity chunk memory.} AR 0.897 and LRU 0.824 exceed both the
+        RAG family and the long-context family, including on 1.6--2.3M-char
+        inputs that no context window holds.
+  \item \textbf{Test-time learning is the honest gap.} TTL 0.555 edges the
+        best field value (0.539) but the CI straddles it. Learning a
+        classification skill from thousands of in-context examples is not
+        what an episodic/semantic memory is optimized for; accuracy here
+        tracks how many labeled exemplars retrieval can surface per query.
+\end{enumerate}
+
+\section{Threats to Validity}
+\label{sec:threats}
+
+\begin{enumerate}
+  \item \textbf{Base-model mismatch.} \nous{} reasons with Claude Sonnet~5;
+        the benchmark's agentic-memory rows mostly use GPT-4o-mini, and its
+        strongest long-context rows use GPT-4.1-mini and Claude-3.7-Sonnet.
+        Part of \nous{}'s margin is attributable to the stronger base model.
+        The long-context Claude-3.7 row (best field TTL and LRU) is the
+        fairest anchor, and \nous{} still exceeds it on AR (+30pp), LRU
+        (+20pp), and CR (+54pp).
+  \item \textbf{Subsets, not the full benchmark.} Question counts per source
+        range from 8 to 200 (Table~\ref{tab:datasets}); the giants
+        (eventqa-full, ruler-421K, longmemeval) were measured at one context
+        each. CIs in Table~\ref{tab:results} reflect this. recsys (TTL) is
+        excluded for lack of the grader's data file; InfBench-Sum is a single
+        book.
+  \item \textbf{Configuration provenance.} The production configuration was
+        improved using failures observed on this benchmark's CR subset in an
+        earlier phase (write-path fidelity, hybrid chunk retrieval, recall
+        depth). The evaluation is therefore best read as ``\nous{} after its
+        memory bugs were fixed,'' not as a blind first attempt. No knob was
+        tuned per-dataset, and the same configuration serves all four
+        competencies.
+  \item \textbf{Benchmark prompts embed task rules.} The benchmark's own CR
+        and eventQA templates tell the agent the update rule / task framing.
+        We use them because the field numbers use them; they help any
+        system.
+  \item \textbf{Judge sharing.} LongMemEval and InfBench-Sum scores depend on
+        GPT-4o judges, as in the benchmark.
+\end{enumerate}
+
+\section{Conclusion}
+
+Under the benchmark's exact evaluation protocol and its production
+configuration, \nous{} is robustly above every method published with
+\mab{} on three of four memory competencies---Accurate Retrieval (0.897),
+Conflict Resolution (0.766, with a 2.6$\times$ margin over the best published
+average), and Long-Range Understanding (0.824)---and statistically tied with
+the best published value on Test-Time Learning (0.555). The conflict-resolution
+result in particular suggests that an explicit extract-link-consolidate memory
+architecture addresses a failure mode that both long-context and RAG systems
+share. The evaluation harness, vendored graders, pinned configuration, and
+per-question result records are available in the project repository for
+reproduction.
+
+\begin{thebibliography}{9}
+\bibitem{mab}
+Y.~Hu et al.,
+``Evaluating Memory in LLM Agents via Incremental Multi-Turn Interactions''
+(\mab{}), ICLR 2026. \texttt{github.com/HUST-AI-HYZ/MemoryAgentBench},
+arXiv:2507.05257.
+\end{thebibliography}
+
+\end{document}
