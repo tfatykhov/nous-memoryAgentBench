@@ -70,14 +70,29 @@ async def main() -> int:
     os.makedirs("reports/paper_baseline", exist_ok=True)
     open(results_path, "w").close()  # fresh file per run: _persist appends, and a
     # same-source rerun reuses this tag -> without truncation it mixes runs (dup rows).
-    # Companion run metadata: makes every result file self-describing (which ingest
-    # capacity produced it), so truncation audits don't depend on shell history.
+    # Companion run metadata: makes every result file self-describing (capacity,
+    # provenance), so audits don't depend on shell history or this conversation.
+    from mab.cli import _git_sha
+    from mab.datasets.loader import dataset_fingerprint
+
+    def _nous_model() -> str | None:
+        try:  # effective model = live nous .env (config overrides never set it)
+            for line in open(settings.nous_repo / ".env", encoding="utf-8", errors="ignore"):
+                if line.startswith("NOUS_MODEL="):
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
+        except OSError:
+            pass
+        return None
+
     with open(results_path + ".meta.json", "w", encoding="utf-8") as mf:
         json.dump({
             "competency": competency.value, "sources": sources, "config_file": config_file,
+            "config_overrides": config.env,  # non-secret NOUS_* knobs actually applied
             "chunk_chars": settings.chunk_chars, "max_ingest_chunks": settings.max_ingest_chunks,
             "sleep_cycles": settings.sleep_cycles, "max_instances_per_source": max_inst,
             "max_questions_per_instance": max_q,
+            "harness_git_sha": _git_sha(), "nous_git_sha": _git_sha(str(settings.nous_repo)),
+            "nous_model": _nous_model(), "dataset": dataset_fingerprint(competency),
         }, mf, indent=2)
     async with httpx.AsyncClient() as judge_client:
         key = _openai_key()

@@ -30,10 +30,10 @@ these fields; the post-hoc audit above covers them.
   `longmem_full.log` + `results_accurate_retrieval_longmemeval_s_.jsonl` are
   the post-fix (turn-packing) run used in the baseline (7/8 = 0.875).
 - `results_test_time_learning_icl_*.jsonl` — contains 240 raw rows: the n=200
-  TTL run PLUS 32 duplicate rows appended from the earlier n=8 baseline (the
-  `_persist` append bug, fixed the same day). Dedup on
+  TTL run PLUS 40 duplicate rows (5 sources x 8) appended from the earlier n=8
+  baseline (the `_persist` append bug, fixed the same day). Dedup on
   `(source, qa_pair_id or prompt)` keeping the last occurrence reproduces the
-  reported 111/200 = 0.555 exactly.
+  reported 111/200 = 0.555 exactly (team-review verified).
 
 ## Not JSONL-persisted (pre-persistence runs, evidence in logs)
 
