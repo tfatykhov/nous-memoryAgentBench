@@ -5,6 +5,20 @@ Single reconciliation point for the nous / MemoryAgentBench baseline
 narrative report: `docs/reviews/2026-07-03-paper-faithful-baseline.md`).
 Runs executed 2026-07-03/04.
 
+## Position statement (read this before quoting any number)
+
+On the sampled, paper-aligned slices, nous exceeds every method reported in the
+MemoryAgentBench paper on Accurate Retrieval, Conflict Resolution, and
+Long-Range Understanding — with lower confidence bounds clearing the paper's
+best per-competency averages — and matches the best reported Test-Time
+Learning. This is evidence of strong memory behavior on those slices, NOT a
+claim of state-of-the-art or official-benchmark superiority: coverage is
+partial (recsys and most summarization absent, giant sources at one instance),
+the base model is stronger than most field rows, and the comparison target is
+the methods in the benchmark paper (2025) — not newer 2026 systems that report
+full-benchmark figures (e.g. Infini Memory, arXiv:2606.10677, 64.7% overall),
+which are NOT comparable to any partial aggregate of the numbers below.
+
 ## Comparability tiers
 
 - **T1 — paper-comparable (transport deviation only):** paper's exact prompt,
