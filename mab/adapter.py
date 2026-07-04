@@ -55,7 +55,21 @@ class AnswerResult:
 def chunk_context(instance: MabInstance, chunk_chars: int, max_chunks: int) -> tuple[list[str], int]:
     """Return (chunks, n_truncated). Prefer MAB's pre-chunked turns when present."""
     if instance.haystack_turns:
-        texts = [str(t.get("content", "")) for t in instance.haystack_turns if t.get("content")]
+        # PACK turns into chunk_chars-sized chunks (join consecutive turns) rather
+        # than one-turn-per-chunk. One-per-chunk truncates long conversations at
+        # max_chunks (longmemeval: 1282 turns -> 80 = ~6% ingested). Packing keeps
+        # every turn while holding the chunk count low (1.6M chars / 32k ~ 50).
+        turns = [str(t.get("content", "")) for t in instance.haystack_turns if t.get("content")]
+        texts = []
+        buf = ""
+        for t in turns:
+            if buf and len(buf) + len(t) + 1 > chunk_chars:
+                texts.append(buf)
+                buf = t
+            else:
+                buf = f"{buf}\n{t}" if buf else t
+        if buf:
+            texts.append(buf)
     else:
         ctx = instance.context
         texts = [ctx[i : i + chunk_chars] for i in range(0, len(ctx), chunk_chars)]

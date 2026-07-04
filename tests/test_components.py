@@ -96,11 +96,16 @@ def test_chunk_monolithic_context_and_truncation():
     assert all(len(c) == 100 for c in chunks)
 
 
-def test_chunk_prefers_haystack_turns():
-    turns = [{"role": "user", "content": "alpha"}, {"role": "assistant", "content": "beta"}]
-    chunks, truncated = chunk_context(_inst(turns=turns), chunk_chars=10, max_chunks=10)
-    assert chunks == ["alpha", "beta"]
-    assert truncated == 0
+def test_chunk_packs_haystack_turns():
+    turns = [{"role": "user", "content": "alpha"}, {"role": "assistant", "content": "beta"},
+             {"content": "gamma"}]
+    # large budget -> all turns PACK into one chunk (joined by newline), so a long
+    # conversation isn't truncated to one-turn-per-chunk.
+    chunks, truncated = chunk_context(_inst(turns=turns), chunk_chars=100, max_chunks=10)
+    assert chunks == ["alpha\nbeta\ngamma"] and truncated == 0
+    # small budget -> packing respects chunk_chars and splits per turn.
+    chunks2, _ = chunk_context(_inst(turns=turns), chunk_chars=5, max_chunks=10)
+    assert chunks2 == ["alpha", "beta", "gamma"]
 
 
 # --- instance env & preflight ----------------------------------------------
