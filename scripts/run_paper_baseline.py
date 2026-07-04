@@ -47,7 +47,9 @@ async def main() -> int:
         by_src.setdefault(inst.source, []).append(inst)
     instances = [i for s in sources for i in by_src.get(s, [])[:max_inst]]
     nq = sum(len(i.questions) for i in instances)
+    import re as _re
     tag = f"{competency.value}_{'-'.join(s[:14] for s in sources)}"
+    tag = _re.sub(r"[^A-Za-z0-9_.-]", "_", tag)  # sanitize (e.g. longmemeval_s* -> _s_)
     results_path = f"reports/paper_baseline/results_{tag}.jsonl"
     print(f"[{competency.value}] config={config_file} instances={len(instances)} questions={nq}", flush=True)
     print(f"persisting to: {results_path}", flush=True)
