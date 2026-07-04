@@ -8,16 +8,25 @@ Runs executed 2026-07-03/04.
 ## Position statement (read this before quoting any number)
 
 On the sampled, paper-aligned slices, nous exceeds every method reported in the
-MemoryAgentBench paper on Accurate Retrieval, Conflict Resolution, and
-Long-Range Understanding — with lower confidence bounds clearing the paper's
-best per-competency averages — and matches the best reported Test-Time
-Learning. This is evidence of strong memory behavior on those slices, NOT a
-claim of state-of-the-art or official-benchmark superiority: coverage is
-partial (recsys and most summarization absent, giant sources at one instance),
-the base model is stronger than most field rows, and the comparison target is
-the methods in the benchmark paper (2025) — not newer 2026 systems that report
-full-benchmark figures (e.g. Infini Memory, arXiv:2606.10677, 64.7% overall),
-which are NOT comparable to any partial aggregate of the numbers below.
+MemoryAgentBench paper (2025 table) on Accurate Retrieval, Conflict Resolution,
+and Long-Range Understanding, and matches that table's best Test-Time Learning.
+
+Against the **2026 field** — full-benchmark, gpt-5-mini-base numbers reported by
+Infini Memory (arXiv:2606.10677): Infini-A AR 83.0 / TTL 79.0 / LRU 79.3 /
+SF 83.6 — the honest placement is:
+
+- **AR: above the best 2026 value** (0.897 slice vs 0.830)
+- **CR/SF: second** (0.766 vs Infini-A 0.836; above everything else)
+- **LRU: comparable** (0.824 detective-only vs 0.793 incl. summarization)
+- **TTL: behind the 2026 leaders** (0.555 icl-only vs 0.70-0.79 incl. recsys)
+
+Cross-comparison caveats: the 2026 numbers are as-reported (not re-run by us),
+use a gpt-5 LLM-judge for ALL tasks (typically more lenient than the
+benchmark's official substring graders), 4096-token chunks, and full coverage
+where ours is slices. No state-of-the-art or official-benchmark claim is made.
+Never compare any partial aggregate of the numbers below to full-benchmark
+"overall" figures — Infini Memory's own abstract (64.7%) and results table
+(competency avg 81.2%) disagree on aggregation within one paper.
 
 ## Comparability tiers
 
