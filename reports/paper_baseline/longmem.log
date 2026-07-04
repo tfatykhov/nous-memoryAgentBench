@@ -1,0 +1,4 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[accurate_retrieval] config=configs/prod_memory_bigctx.env instances=1 questions=8
+persisting to: reports/paper_baseline/results_accurate_retrieval_longmemeval_s_.jsonl
+ingest truncated 1202 chunks (cap 80) for longmemeval_s*#17

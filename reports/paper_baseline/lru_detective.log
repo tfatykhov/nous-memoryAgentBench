@@ -1,0 +1,7 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[long_range_understanding] config=configs/prod_memory.env instances=1 questions=6
+persisting to: reports/paper_baseline/results_long_range_understanding_detective_qa.jsonl
+
+  detective_qa                     PAPER 5/6 = 0.833   errored=0
+
+long_range_understanding paper-faithful: 5/6 = 0.833

@@ -1,0 +1,12 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[test_time_learning] config=configs/prod_memory.env instances=5 questions=200
+persisting to: reports/paper_baseline/results_test_time_learning_icl_banking77_-icl_clinic150_-icl_nlu_8296sh-icl_trec_coars-icl_trec_fine_.jsonl
+ingest settle timed out after 1200.0s
+
+  icl_banking77_5900shot_balance   PAPER 21/40 = 0.525   errored=0
+  icl_clinic150_7050shot_balance   PAPER 20/40 = 0.500   errored=0
+  icl_nlu_8296shot_balance         PAPER 17/40 = 0.425   errored=0
+  icl_trec_coarse_6600shot_balance PAPER 35/40 = 0.875   errored=0
+  icl_trec_fine_6400shot_balance   PAPER 18/40 = 0.450   errored=0
+
+test_time_learning paper-faithful (binary sources): 111/200 = 0.555

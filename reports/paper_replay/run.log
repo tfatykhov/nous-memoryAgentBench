@@ -1,0 +1,14 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+instances=8 questions=64 (expect 64 to match cr_rebaseline_v2)
+agents by size: {'6k': 2, '262k': 2, '64k': 2, '32k': 2}
+  factconsolidation_mh_6k      agent=28b19787  PAPER 5/8  (ours 2/8)  errored=0
+  factconsolidation_mh_32k     agent=3ac49da7  PAPER 6/8  (ours 2/8)  errored=0
+  factconsolidation_mh_64k     agent=84e808c8  PAPER 6/8  (ours 2/8)  errored=0
+  factconsolidation_mh_262k    agent=39580836  PAPER 3/8  (ours 0/8)  errored=0
+  factconsolidation_sh_6k      agent=22353a27  PAPER 7/8  (ours 7/8)  errored=0
+  factconsolidation_sh_32k     agent=82ec74a5  PAPER 8/8  (ours 7/8)  errored=0
+  factconsolidation_sh_64k     agent=089599da  PAPER 7/8  (ours 5/8)  errored=0
+  factconsolidation_sh_262k    agent=9a5951c2  PAPER 7/8  (ours 6/8)  errored=0
+
+PAPER prompt+grader: 49/64 = 0.766
+OUR   prompt+grader: 31/64 = 0.484  (same memory, same questions)
