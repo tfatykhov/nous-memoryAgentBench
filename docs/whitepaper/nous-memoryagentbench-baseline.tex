@@ -372,21 +372,34 @@ Three observations:
         system.
   \item \textbf{Judge sharing.} LongMemEval and InfBench-Sum scores depend on
         GPT-4o judges, as in the benchmark.
+  \item \textbf{The comparison target is the benchmark paper's table, not the
+        2026 field frontier.} Table~\ref{tab:field} reproduces the methods the
+        benchmark's authors evaluated (2025). Newer systems report
+        full-benchmark figures on \mab{} --- e.g.\ Infini Memory~\cite{infini}
+        reports 64.7\% overall --- which are \emph{not} comparable to any
+        aggregate of our per-slice numbers (different coverage: recsys and
+        most summarization absent here, giant sources at one instance). We
+        therefore make no claim relative to post-paper systems, and no
+        state-of-the-art claim.
 \end{enumerate}
 
 \section{Conclusion}
 
-Under the benchmark's exact evaluation protocol and its production
-configuration, \nous{} is robustly above every method published with
-\mab{} on three of four memory competencies---Accurate Retrieval (0.897),
-Conflict Resolution (0.766, with a 2.6$\times$ margin over the best published
-average), and Long-Range Understanding (0.824)---and statistically tied with
-the best published value on Test-Time Learning (0.555). The conflict-resolution
-result in particular suggests that an explicit extract-link-consolidate memory
+On the sampled, paper-aligned slices and under the benchmark's exact grading,
+\nous{} exceeds every method reported in the \mab{} paper on three of four
+memory competencies---Accurate Retrieval (0.897), Conflict Resolution (0.766,
+a 2.6$\times$ margin over the best published average), and Long-Range
+Understanding (0.824)---and matches the best reported value on Test-Time
+Learning (0.555). This is evidence of strong memory behavior on those slices,
+not a claim of state-of-the-art or official-benchmark superiority
+(Section~\ref{sec:threats}, items 2 and 6). The conflict-resolution result in
+particular suggests that an explicit extract-link-consolidate memory
 architecture addresses a failure mode that both long-context and RAG systems
-share. The evaluation harness, vendored graders, pinned configuration, and
-per-question result records are available in the project repository for
-reproduction.
+share, and the evidence justifies full-benchmark evaluation as the next step.
+The evaluation harness, vendored graders, pinned configuration, and
+per-question result records are available in the project repository; the
+repository's \texttt{BASELINE\_SUMMARY.md} reconciles every number to its
+evidence file and comparability tier.
 
 \begin{thebibliography}{9}
 \bibitem{mab}
@@ -394,6 +407,9 @@ Y.~Hu et al.,
 ``Evaluating Memory in LLM Agents via Incremental Multi-Turn Interactions''
 (\mab{}), ICLR 2026. \texttt{github.com/HUST-AI-HYZ/MemoryAgentBench},
 arXiv:2507.05257.
+\bibitem{infini}
+``Infini Memory: Maintainable Topic Documents for Long-Term LLM Agent
+Memory,'' arXiv:2606.10677, 2026.
 \end{thebibliography}
 
 \end{document}
