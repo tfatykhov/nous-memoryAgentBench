@@ -138,8 +138,8 @@ questions. Table~\ref{tab:datasets} lists the evaluated subsets.
 Competency & Source & Context size & Questions used & Grader \\
 \midrule
 \multirow{4}{*}{CR}
- & factconsolidation\_sh (6k--262k)  & 26k--1.1M chars & $4\times8$ & substring (SQuAD-norm.) \\
- & factconsolidation\_mh (6k--262k)  & 26k--1.1M chars & $4\times8$ & substring (SQuAD-norm.) \\
+ & factconsolidation\_sh (6k--262k)  & 26k--1.1M chars & $4\times40$ & substring (SQuAD-norm.) \\
+ & factconsolidation\_mh (6k--262k)  & 26k--1.1M chars & $4\times40$ & substring (SQuAD-norm.) \\
  & \multicolumn{4}{l}{\footnotesize single-hop (sh) = updated fact; multi-hop (mh) = compose two updated facts} \\[2pt]
 \multirow{6}{*}{AR}
  & eventqa\_65536                     & $\sim$285k chars & 200 (5 ctx $\times$ 40) & all-elements recall \\
@@ -312,12 +312,13 @@ Mem0 & agentic memory & 32.6 & 21.2 & 20.7 & 10.0 \\
 GraphRAG & structure-aug. & 40.9 & 24.8 & 19.9 & 8.0 \\
 MIRIX & agentic memory & 47.5 & 24.1 & 25.4 & 8.0 \\
 \midrule
-\textbf{\nous{}} (this work) & cognitive memory & \textbf{89.7} & 55.5 & \textbf{82.4} & \textbf{76.6} \\
+\textbf{\nous{}} (this work) & cognitive memory & \textbf{89.7} & 55.5$^{\S}$ & \textbf{82.4} & \textbf{72.5} \\
 \bottomrule
 \end{tabular}
 \caption{Per-competency averages (\%). Field rows are from the benchmark's
 published results; bold marks the best value per column among field methods,
-and \nous{} where it exceeds all of them. Comparison caveats in
+and \nous{} where it exceeds all of them. $^{\S}$~ICL subset only (recsys
+excluded). Comparison caveats in
 Section~\ref{sec:threats} apply---in particular the base-model mismatch and
 the subset sizes.}
 \label{tab:field}
