@@ -1,0 +1,9 @@
+[results_conflict_resolution_replay_n320.jsonl] judging 320 answers with gpt-5...
+  factconsolidation_mh_262k        official 12/40=0.300  gpt5-judge 12/40=0.300  delta +0.0pp
+  factconsolidation_mh_32k         official 24/40=0.600  gpt5-judge 24/40=0.600  delta +0.0pp
+  factconsolidation_mh_64k         official 21/40=0.525  gpt5-judge 21/40=0.525  delta +0.0pp
+  factconsolidation_mh_6k          official 33/40=0.825  gpt5-judge 33/40=0.825  delta +0.0pp
+  factconsolidation_sh_262k        official 35/40=0.875  gpt5-judge 35/40=0.875  delta +0.0pp
+  factconsolidation_sh_32k         official 33/40=0.825  gpt5-judge 34/40=0.850  delta +2.5pp
+  factconsolidation_sh_64k         official 36/40=0.900  gpt5-judge 36/40=0.900  delta +0.0pp
+  factconsolidation_sh_6k          official 38/40=0.950  gpt5-judge 38/40=0.950  delta +0.0pp
