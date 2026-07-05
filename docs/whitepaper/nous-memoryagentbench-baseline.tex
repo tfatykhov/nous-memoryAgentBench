@@ -347,7 +347,7 @@ Three observations against the paper's table:
         consolidated during sleep, rather than left as contradictory passages
         for retrieval to stumble over.
   \item \textbf{Retrieval and long-range understanding benefit from
-        full-fidelity chunk memory.} AR 0.897 and LRU 0.824 exceed both the
+        full-fidelity chunk memory.} AR 0.836 and LRU 0.824 exceed both the
         RAG family and the long-context family, including on 1.6--2.3M-char
         inputs that no context window holds.
   \item \textbf{Test-time learning is the honest gap.} TTL 0.555 edges the
@@ -524,7 +524,7 @@ retrieved context; we report the curve as a finding, not a diagnosis.
 
 On the sampled, paper-aligned slices and under the benchmark's exact grading,
 \nous{} exceeds every method reported in the \mab{} paper on three of four
-memory competencies---Accurate Retrieval (0.897), Conflict Resolution (0.725
+memory competencies---Accurate Retrieval (0.836), Conflict Resolution (0.725
 at $n{=}320$, a 2.5$\times$ margin over that table's best), and Long-Range
 Understanding (0.824)---and matches that table's best Test-Time Learning
 (0.555, ICL subset). Against the 2026 field at sub-dataset level, at full

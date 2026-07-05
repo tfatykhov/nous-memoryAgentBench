@@ -49,11 +49,10 @@ against the same persisted memory; multi-hop degrades with context size
 
 **Backbone-adjusted claims** (per prod-nous review, decision e65cd66b; yardstick =
 MAB's own observed backbone swing ~9.7pp): FC-MH margin **+21.2pp -> decidable
-win**; AR +10.6pp -> marginal; FC-SH +8.4pp and DetQA +8.1pp -> **directionally
-ahead but backbone-undecidable** (not claimed as architecture wins); ICL
--21.5pp behind. AR "avg" is macro (matches Infini's method, weak on both
-sides: n=8 cells have Wilson CIs ~[0.53,0.98]); micro AR = 0.897 official /
-0.922 judge.
+win**; AR +2.8pp -> **statistical peer**; FC-SH +8.4pp and DetQA +8.1pp ->
+**directionally ahead but backbone-undecidable** (not claimed as architecture
+wins); ICL -21.5pp behind (decidable loss). AR "avg" is macro (matches
+Infini's method); micro AR = 0.836 official / 0.880 judge.
 
 **Judge validation (2026-07-05):** reconstructed gpt-5 judge vs official
 graders on all n=820 common items: **agreement 0.970, Cohen's kappa 0.918**.
@@ -96,7 +95,7 @@ below to full-benchmark "overall" figures.
 |---|---|---|---|---|
 | **CR 0.725** (232/320; sh 0.887, mh 0.562) | 320 | T1 | `reports/paper_baseline/results_conflict_resolution_replay_n320.jsonl` | ALL 40 Q/instance replayed on the same persisted memory; content-verified agent mapping. Supersedes the n=64 0.766 (`reports/paper_replay/run.log`, optimistic first-8 draw) |
 | CR gpt-5-judge 0.728 (sh 0.894, mh 0.562) | 320 | T2* | `reports/judge_regrade/judge_results_conflict_resolution_replay_n320.jsonl` | 2026-protocol regrade (reconstructed judge) |
-| AR/LRU/TTL gpt-5-judge regrades | 500 | T2* | `reports/judge_regrade/judge_results_*.jsonl` | Event 92.1, MH-QA 87.5, LME 100.0, DetQA 85.3, ICL 62.5 |
+| AR/LRU/TTL gpt-5-judge regrades | 500 | T2* | `reports/judge_regrade/judge_results_*.jsonl` | DetQA 85.3, ICL 62.5 current; the n=8-era AR cells in these files (MH-QA 87.5, LME 100.0, Event 92.1) are SUPERSEDED by the `*_replay_full` rows below |
 | **AR 0.836** (475/568, CI [0.806,0.867]) | 568 | T1 | consolidated from the files below | full question coverage of every ingested context (2026-07-06); supersedes AR 0.897 (n=232) |
 | — eventqa_65536 0.910 | 200 | T1 | `reports/paper_baseline/results_accurate_retrieval_eventqa_65536.jsonl` | 5 contexts x 40 Q |
 | — eventqa_131072 0.860 | 100 | T1 | `.../results_eventqa_131072_replay_full.jsonl` | supersedes 0.750 (n=8) |
