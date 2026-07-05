@@ -11,22 +11,32 @@ On the sampled, paper-aligned slices, nous exceeds every method reported in the
 MemoryAgentBench paper (2025 table) on Accurate Retrieval, Conflict Resolution,
 and Long-Range Understanding, and matches that table's best Test-Time Learning.
 
-Against the **2026 field** — full-benchmark, gpt-5-mini-base numbers reported by
-Infini Memory (arXiv:2606.10677): Infini-A AR 83.0 / TTL 79.0 / LRU 79.3 /
-SF 83.6 — the honest placement is:
+Against the **2026 field** — Infini Memory's Table 1 (arXiv:2606.10677, full
+benchmark, gpt-5-mini base, gpt-5 LLM-judge; every row verbatim-extracted and
+arithmetic-verified) — compared at **sub-dataset level, with all persisted
+nous answers RE-GRADED under a reconstruction of their judge protocol**
+(gpt-5, binary; theirs is unpublished):
 
-- **AR: above the best 2026 value** (0.897 slice vs 0.830)
-- **CR/SF: second** (0.766 vs Infini-A 0.836; above everything else)
-- **LRU: comparable** (0.824 detective-only vs 0.793 incl. summarization)
-- **TTL: behind the 2026 leaders** (0.555 icl-only vs 0.70-0.79 incl. recsys)
+| Sub-dataset | nous (gpt-5 judge) | Infini-A | |
+|---|---|---|---|
+| AR avg (SH-QA/MH-QA/LME/Event) | **91.8** (87.5/87.5/100.0/92.1) | 81.2 | above |
+| FC-SH / FC-MH (conflict) | **89.4 / 56.2** (n=160 each) | 81.0 / 35.0 | above on both |
+| DetQA (long-range) | **85.3** (n=68) | 77.2 | above |
+| Summ | 59.2 (n=1) | 59.9 | par |
+| ICL (test-time learning) | 62.5 (n=200) | **84.0** | **behind** |
 
-Cross-comparison caveats: the 2026 numbers are as-reported (not re-run by us),
-use a gpt-5 LLM-judge for ALL tasks (typically more lenient than the
-benchmark's official substring graders), 4096-token chunks, and full coverage
-where ours is slices. No state-of-the-art or official-benchmark claim is made.
-Never compare any partial aggregate of the numbers below to full-benchmark
-"overall" figures — Infini Memory's own abstract (64.7%) and results table
-(competency avg 81.2%) disagree on aggregation within one paper.
+Under the official strict graders the same numbers are: AR 85.1, FC-SH 88.7,
+FC-MH 56.2, DetQA 82.4, ICL 55.5 (judge-vs-strict delta +0–12.5pp on
+verbose-answer tasks, ~0 on short-entity tasks). CR total re-priced 0.766
+(n=64) -> **0.725** (n=320, CI [0.676, 0.774]) by replaying ALL 40 Q/instance
+against the same persisted memory; multi-hop degrades with context size
+(0.825/0.600/0.525/0.300 at 6k/32k/64k/262k).
+
+Caveats: 2026 numbers as-reported (not re-run); their judge prompt is
+unpublished (ours is a disclosed reconstruction); base models differ
+(claude-sonnet-5 vs gpt-5-mini); recsys blocked -> nous TTL avg and Overall
+are n/a. No state-of-the-art or official-benchmark claim. Never compare any
+partial aggregate of the numbers below to full-benchmark "overall" figures.
 
 ## Comparability tiers
 
@@ -44,7 +54,9 @@ Never compare any partial aggregate of the numbers below to full-benchmark
 
 | Number | n | Tier | Evidence file | Notes |
 |---|---|---|---|---|
-| **CR 0.766** (49/64; sh 0.906, mh 0.625) | 64 | T1 | `reports/paper_replay/run.log` | paper-prompt replay over the 8 persisted CR agents (pre-JSONL run) |
+| **CR 0.725** (232/320; sh 0.887, mh 0.562) | 320 | T1 | `reports/paper_baseline/results_conflict_resolution_replay_n320.jsonl` | ALL 40 Q/instance replayed on the same persisted memory; content-verified agent mapping. Supersedes the n=64 0.766 (`reports/paper_replay/run.log`, optimistic first-8 draw) |
+| CR gpt-5-judge 0.728 (sh 0.894, mh 0.562) | 320 | T2* | `reports/judge_regrade/judge_results_conflict_resolution_replay_n320.jsonl` | 2026-protocol regrade (reconstructed judge) |
+| AR/LRU/TTL gpt-5-judge regrades | 484 | T2* | `reports/judge_regrade/judge_results_*.jsonl` | Event 92.1, MH-QA 87.5, LME 100.0, DetQA 85.3, ICL 62.5 |
 | **AR 0.897** (208/232) | 232 | T1 | consolidated from the five files below | eventqa_65536-weighted |
 | — eventqa_65536 0.910 | 200 | T1 | `reports/paper_baseline/results_accurate_retrieval_eventqa_65536.jsonl` | 5 contexts x 40 Q |
 | — eventqa_131072 0.750 | 8 | T1 | `.../results_accurate_retrieval_eventqa_131072.jsonl` | |
