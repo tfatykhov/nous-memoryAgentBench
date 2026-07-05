@@ -21,7 +21,7 @@ sampled slices — 95% CIs attached, no aggregate score published by policy:
 
 | Competency | Score | n | 95% CI | Best avg. in MAB paper |
 |---|---|---|---|---|
-| Accurate Retrieval | **0.897** | 232 | [0.86, 0.94] | 0.718 |
+| Accurate Retrieval | **0.836** | 568 | [0.81, 0.87] | 0.718 |
 | Conflict Resolution | **0.725** (SH 0.887 / MH 0.562) | 320 | [0.68, 0.77] | 0.295 |
 | Long-Range Understanding (detective) | **0.824** | 68 | [0.73, 0.91] | 0.622 |
 | Test-Time Learning (**ICL subset** — recsys blocked) | 0.555 | 200 | [0.49, 0.62] | 0.539 |
@@ -31,12 +31,16 @@ gpt-5 judge; our answers re-graded under a validated reconstruction of that judg
 0.970 / Cohen's kappa 0.918 vs official graders), with margins graded against the ~9.7pp known
 backbone swing:
 
-- **Multi-hop conflict resolution: +21.2pp above the 2026 leader** (0.562 vs 0.350) — holds
-  under all three grading protocols; the cell their own paper calls unsolved.
-- Retrieval +10.6pp (marginal); single-hop CR and long-range QA +8pp (directionally ahead,
-  backbone-undecidable); **ICL −21.5pp behind** — the identified improvement target.
-- Discovered en route: multi-hop conflict resolution **degrades with context scale**
-  (0.83 → 0.30 from 6k → 262k chars).
+- **Statistical peers overall** (full question coverage of every ingested context):
+  one decidable nous win — **multi-hop conflict resolution +21.2pp** (0.562 vs 0.350,
+  robust under all three grading protocols; the cell their own paper calls unsolved) —
+  and one decidable loss — **ICL −21.5pp**. LongMemEval is a weak cell (71.7 vs 79.3);
+  everything else (retrieval +2.8 macro, Event +8.9, SH-Doc QA +8.0, DetQA +8.1,
+  FC-SH +8.4, MH-Doc QA +2.0) sits within the ~9.7pp backbone-swing band.
+- Architectural signal: performance **degrades where evidence must be composed across
+  scale** — multi-hop conflict chains (0.83 → 0.30 from 6k → 262k chars), multi-hop
+  document QA, and long multi-session conversation — while single-scale retrieval and
+  consolidation stay strong.
 
 Caveats live next to every claim: slices not the full benchmark, base-model confound flagged
 per claim, judge reconstruction published verbatim (white paper appendix), no SOTA claim.

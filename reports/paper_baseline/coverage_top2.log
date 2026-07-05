@@ -1,0 +1,22 @@
+##### waiting for in-flight eventqa_131072 (pid 68128) 21:19
+##### in-flight done; ruler_qa2 21:45
+[ruler_qa2_421K#1] agent=per-684fd303 questions=100
+  -> 71/100 correct, errored=0
+
+ruler_qa2_421K coverage replay: 71/100 = 0.710 CI [0.621,0.799] errored=0
+##### ruler_qa1 22:16
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[ruler_qa1_197K#0] agent=per-be92dc1c questions=100
+  -> 87/100 correct, errored=0
+
+ruler_qa1_197K coverage replay: 87/100 = 0.870 CI [0.804,0.936] errored=0
+##### longmem 22:38
+[longmemeval_s*#17] agent=per-277c41c3 questions=60
+  -> 42/60 correct, errored=0
+[longmemeval_s*#18] NO MEMORY FOUND — skipping (needs ingest)
+[longmemeval_s*#19] NO MEMORY FOUND — skipping (needs ingest)
+[longmemeval_s*#20] NO MEMORY FOUND — skipping (needs ingest)
+[longmemeval_s*#21] NO MEMORY FOUND — skipping (needs ingest)
+
+longmemeval_s* coverage replay: 42/60 = 0.700 CI [0.584,0.816] errored=0
+##### TOP2 DONE - STOPPING FOR TODAY 22:59

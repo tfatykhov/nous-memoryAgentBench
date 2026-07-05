@@ -1,0 +1,10 @@
+##### eventqa_131072 21:12
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[eventqa_131072#12] agent=per-b858a752 questions=100
+  -> 86/100 correct, errored=0
+[eventqa_131072#13] NO MEMORY FOUND — skipping (needs ingest)
+[eventqa_131072#14] NO MEMORY FOUND — skipping (needs ingest)
+[eventqa_131072#15] NO MEMORY FOUND — skipping (needs ingest)
+[eventqa_131072#16] NO MEMORY FOUND — skipping (needs ingest)
+
+eventqa_131072 coverage replay: 86/100 = 0.860 CI [0.792,0.928] errored=0
