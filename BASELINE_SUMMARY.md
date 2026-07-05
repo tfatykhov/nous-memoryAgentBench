@@ -32,11 +32,36 @@ verbose-answer tasks, ~0 on short-entity tasks). CR total re-priced 0.766
 against the same persisted memory; multi-hop degrades with context size
 (0.825/0.600/0.525/0.300 at 6k/32k/64k/262k).
 
+**Backbone-adjusted claims** (per prod-nous review, decision e65cd66b; yardstick =
+MAB's own observed backbone swing ~9.7pp): FC-MH margin **+21.2pp -> decidable
+win**; AR +10.6pp -> marginal; FC-SH +8.4pp and DetQA +8.1pp -> **directionally
+ahead but backbone-undecidable** (not claimed as architecture wins); ICL
+-21.5pp behind. AR "avg" is macro (matches Infini's method, weak on both
+sides: n=8 cells have Wilson CIs ~[0.53,0.98]); micro AR = 0.897 official /
+0.922 judge.
+
+**Judge validation (2026-07-05):** reconstructed gpt-5 judge vs official
+graders on all n=820 common items: **agreement 0.970, Cohen's kappa 0.918**.
+Inter-judge sensitivity (gpt-4o, identical prompt): agreement 0.927, kappa
+0.813, aggregate +6.6pp (inside the 5-10pp caution band). Per-family: AR/
+LRU/longmem stable (<=1.5pp); **ICL (+7.5pp) and factconsolidation (+12.2pp)
+are judge-model-sensitive** -> official-grader numbers remain headline for
+those; judge numbers secondary. Robustness of the flagship claim: FC-MH =
+0.562 official = 0.562 gpt-5 = 0.469 gpt-4o — **above Infini-A's 0.350 under
+all three protocols**. FC-SH ranges 0.744-0.894 across protocols (straddles
+their 0.81; consistent with its undecidable status). Evidence:
+`reports/judge_regrade/judge_*` (gpt-5) and `judge4o_*` (gpt-4o).
+
+Naming: MAB's official AR sub-dataset names are SH-Doc QA / MH-Doc QA — our
+source ids ruler_qa1_197K / ruler_qa2_421K are internal labels for them.
+"TTL" figures here are the **TTL–ICL subset** (recsys blocked), everywhere.
+
 Caveats: 2026 numbers as-reported (not re-run); their judge prompt is
-unpublished (ours is a disclosed reconstruction); base models differ
-(claude-sonnet-5 vs gpt-5-mini); recsys blocked -> nous TTL avg and Overall
-are n/a. No state-of-the-art or official-benchmark claim. Never compare any
-partial aggregate of the numbers below to full-benchmark "overall" figures.
+unpublished (ours is a disclosed reconstruction, published verbatim in the
+white paper appendix); base models differ (claude-sonnet-5 vs gpt-5-mini);
+recsys blocked -> nous TTL avg and Overall are n/a. No state-of-the-art or
+official-benchmark claim. Never compare any partial aggregate of the numbers
+below to full-benchmark "overall" figures.
 
 ## Comparability tiers
 

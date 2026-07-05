@@ -1,0 +1,27 @@
+[results_accurate_retrieval_eventqa_65536.jsonl] judging 200 answers with gpt-4o...
+  eventqa_65536                    official 182/200=0.910  gpt5-judge 187/200=0.935  delta +2.5pp
+[results_accurate_retrieval_eventqa_131072.jsonl] judging 8 answers with gpt-4o...
+  eventqa_131072                   official 6/8=0.750  gpt5-judge 6/8=0.750  delta +0.0pp
+[results_accurate_retrieval_eventqa_full.jsonl] judging 8 answers with gpt-4o...
+  eventqa_full                     official 7/8=0.875  gpt5-judge 7/8=0.875  delta +0.0pp
+[results_accurate_retrieval_ruler_qa2_421K.jsonl] judging 8 answers with gpt-4o...
+  ruler_qa2_421K                   official 6/8=0.750  gpt5-judge 7/8=0.875  delta +12.5pp
+[results_accurate_retrieval_longmemeval_s_.jsonl] judging 8 answers with gpt-4o...
+  longmemeval_s*                   official 7/8=0.875  gpt5-judge 8/8=1.000  delta +12.5pp
+[results_long_range_understanding_detective_qa.jsonl] judging 68 answers with gpt-4o...
+  detective_qa                     official 56/68=0.824  gpt5-judge 57/68=0.838  delta +1.5pp
+[results_test_time_learning_icl_banking77_-icl_clinic150_-icl_nlu_8296sh-icl_trec_coars-icl_trec_fine_.jsonl] judging 200 answers with gpt-4o...
+  icl_banking77_5900shot_balance   official 21/40=0.525  gpt5-judge 23/40=0.575  delta +5.0pp
+  icl_clinic150_7050shot_balance   official 20/40=0.500  gpt5-judge 20/40=0.500  delta +0.0pp
+  icl_nlu_8296shot_balance         official 17/40=0.425  gpt5-judge 21/40=0.525  delta +10.0pp
+  icl_trec_coarse_6600shot_balance official 35/40=0.875  gpt5-judge 32/40=0.800  delta -7.5pp
+  icl_trec_fine_6400shot_balance   official 18/40=0.450  gpt5-judge 14/40=0.350  delta -10.0pp
+[results_conflict_resolution_replay_n320.jsonl] judging 320 answers with gpt-4o...
+  factconsolidation_mh_262k        official 12/40=0.300  gpt5-judge 10/40=0.250  delta -5.0pp
+  factconsolidation_mh_32k         official 24/40=0.600  gpt5-judge 19/40=0.475  delta -12.5pp
+  factconsolidation_mh_64k         official 21/40=0.525  gpt5-judge 16/40=0.400  delta -12.5pp
+  factconsolidation_mh_6k          official 33/40=0.825  gpt5-judge 30/40=0.750  delta -7.5pp
+  factconsolidation_sh_262k        official 35/40=0.875  gpt5-judge 29/40=0.725  delta -15.0pp
+  factconsolidation_sh_32k         official 33/40=0.825  gpt5-judge 31/40=0.775  delta -5.0pp
+  factconsolidation_sh_64k         official 36/40=0.900  gpt5-judge 29/40=0.725  delta -17.5pp
+  factconsolidation_sh_6k          official 38/40=0.950  gpt5-judge 30/40=0.750  delta -20.0pp

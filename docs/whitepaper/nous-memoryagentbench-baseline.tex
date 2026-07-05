@@ -38,9 +38,12 @@ The first three are robustly above every method in the benchmark paper's
 results (best per-competency averages there: 71.8\%, 29.5\%, 62.2\%); TTL sits
 at the top of that range (53.9\%). Against the 2026 field at sub-dataset
 level, under a reconstruction of its own gpt-5-judge protocol applied to our
-persisted answers, \nous{} is above the leading 2026 system on retrieval,
-long-range QA, and both conflict-resolution sub-tasks (multi-hop 56.2 vs.\
-35.0), and behind it on in-context test-time learning (62.5 vs.\ 84.0).
+persisted answers and with margins graded against known backbone swings
+($\sim$9.7pp), \nous{} is above the leading 2026 system on multi-hop conflict
+resolution ($+$21.2pp, exceeding the swing yardstick) and marginally on
+retrieval ($+$10.6pp); directionally ahead on single-hop conflict resolution
+and long-range QA ($+$8pp, within backbone-swing range, undecidable); and
+behind on in-context test-time learning ($-$21.5pp).
 We describe the testing technique, a statistical-validation pass that materially
 corrected one competency's initial estimate, and the threats to validity that
 qualify a direct leaderboard comparison.
@@ -142,7 +145,7 @@ Competency & Source & Context size & Questions used & Grader \\
  & eventqa\_65536                     & $\sim$285k chars & 200 (5 ctx $\times$ 40) & all-elements recall \\
  & eventqa\_131072                    & $\sim$570k chars & 8  & all-elements recall \\
  & eventqa\_full                      & $\sim$2.3M chars & 8  & all-elements recall \\
- & ruler\_qa1\_197K / qa2\_421K       & 0.9M / 1.9M chars & 8+8 & substring \\
+ & SH-Doc QA / MH-Doc QA (=ruler\_qa1/qa2) & 0.9M / 1.9M chars & 8+8 & substring \\
  & longmemeval\_s*                    & 1.6M chars (1282 turns) & 8 & GPT-4o yes/no judge \\[2pt]
 \multirow{2}{*}{TTL}
  & icl\_banking77 / clinic150 / nlu   & $\sim$400k chars each & $3\times40$ & parsed-label exact match \\
@@ -257,7 +260,7 @@ Competency & Score & $n$ & 95\% CI & Best published avg.\ / verdict \\
 Accurate Retrieval        & \textbf{0.897} & 232 & [0.857, 0.936] & 0.718 --- \textbf{above, robust} \\
 Conflict Resolution       & \textbf{0.725} & 320 & [0.676, 0.774] & 0.295 --- \textbf{above, robust} \\
 Long-Range Understanding  & \textbf{0.824} & 68  & [0.733, 0.914] & 0.622 --- \textbf{above, robust} \\
-Test-Time Learning        & \textbf{0.555} & 200 & [0.486, 0.624] & 0.539 --- at ceiling \\
+Test-Time Learning (ICL subset) & \textbf{0.555} & 200 & [0.486, 0.624] & 0.539 --- at ceiling \\
 \bottomrule
 \end{tabular}
 \caption{\nous{} on \mab{} (paper-faithful grading, production configuration,
@@ -281,7 +284,7 @@ replayed against the same persisted memory that produced the initial run)
 single-hop 0.887 vs.\ multi-hop 0.562 (the benchmark paper reports at most
 $\sim$7\% for multi-hop across its methods); multi-hop degrades with context
 size: 0.825/0.600/0.525/0.300 at 6k/32k/64k/262k. AR eventqa
-0.910/0.750/0.875 (65k/131k/full), ruler 0.875/0.750 (197K/421K), longmemeval
+0.910/0.750/0.875 (65k/131k/full), SH-Doc/MH-Doc QA 0.875/0.750 (MAB's official names; our source ids ruler\_qa1\_197K/qa2\_421K), longmemeval
 0.875; TTL banking77 0.525, clinic150 0.500, nlu 0.425, trec-coarse 0.875,
 trec-fine 0.450; LRU detective 56/68.
 
@@ -392,21 +395,46 @@ gpt-5-mini).}
 \label{tab:field2026}
 \end{table}
 
-The protocol-matched read: \nous{} is \textbf{above the 2026 leader on AR}
-(91.8 vs.\ 81.2, leading 3 of 4 sub-datasets), \textbf{above on LRU} (DetQA
-85.3 vs.\ 77.2; Summ at par on $n{=}1$), and \textbf{above on
-conflict-resolution/forgetting on both sub-tasks} --- most notably
-FC-MH 56.2 vs.\ 35.0, the cell Infini's authors themselves identify as
-unsolved (``multi-hop forgetting cannot be settled at write time''). \nous{}
-is \textbf{behind on ICL test-time learning} (62.5 vs.\ 84.0) --- a real
-capability gap, not a grading artifact, plausibly reflecting Infini's
-up-to-seven-round agentic retrieval loop surfacing more labeled exemplars per
-query. Two secondary findings: the strict-vs-judge delta is $+$0--12.5pp on
-verbose-answer tasks and $\approx$0 on short-entity tasks (CR), so official
-grading was a conservative floor; and \nous{} multi-hop conflict resolution
+\paragraph{Backbone-adjusted read.} Every \nous{}-vs-Infini comparison below
+carries the backbone confound (claude-sonnet-5 vs.\ gpt-5-mini)$^{\ddagger}$.
+The benchmark's own ablations show backbone swings of order $\sim$9.7pp for
+agentic-memory methods (MIRIX, GPT-4o-mini$\to$GPT-4.1-mini), so we grade
+each margin against that yardstick rather than treating any lead as
+architecture-attributable:
+
+\begin{itemize}
+  \item \textbf{FC-MH (multi-hop conflict): margin $+$21.2pp (56.2 vs.\
+        35.0) --- exceeds the known backbone swing}; the one comparative
+        claim that survives the confound. It is also the cell Infini's
+        authors identify as unsolved (``multi-hop forgetting cannot be
+        settled at write time'').
+  \item \textbf{AR: margin $+$10.6pp (91.8 vs.\ 81.2) --- marginally above
+        the swing yardstick}; directionally ahead, weakly
+        backbone-decidable.
+  \item \textbf{FC-SH ($+$8.4pp) and DetQA ($+$8.1pp): within the
+        backbone-swing range --- directionally ahead but
+        backbone-undecidable}; we do not claim these as architecture wins.
+  \item \textbf{ICL: $-$21.5pp behind (62.5 vs.\ 84.0)} --- a real
+        capability gap, not a grading artifact, plausibly reflecting
+        Infini's up-to-seven-round agentic retrieval loop surfacing more
+        labeled exemplars per query.
+\end{itemize}
+
+Averaging note: the AR ``Avg'' column follows Infini's method (macro mean of
+four sub-dataset accuracies) for apples-to-apples --- a method that is
+statistically weak on both sides, since it weights $n{=}8$ cells (Wilson 95\%
+CIs $\approx$ [0.53, 0.98] at 7/8) equally with $n{=}216$ cells. \nous{}'s
+item-weighted (micro) AR is 0.897 official / 0.922 judge-graded --- close to
+the macro values, direction unchanged. Two secondary findings: the
+strict-vs-judge delta is $+$0--12.5pp on verbose-answer tasks and
+$\approx$0 on short-entity tasks (CR), so official grading was a
+conservative floor; and \nous{} multi-hop conflict resolution
 \textbf{degrades with context scale} (0.825/0.600/0.525/0.300 at
-6k/32k/64k/262k) --- the shared frontier problem, on which \nous{}
-nonetheless leads.
+6k/32k/64k/262k). Whether that degradation is retrieval completeness,
+cross-document supersession propagation, or intrinsic multi-hop reasoning
+difficulty (the benchmark's own ablation shows o4-mini falling
+80\%$\to$14\% on FC-MH as context grows) requires per-failure triage of the
+retrieved context; we report the curve as a finding, not a diagnosis.
 
 \section{Threats to Validity}
 \label{sec:threats}
@@ -421,7 +449,7 @@ nonetheless leads.
         (+20pp), and CR (+54pp).
   \item \textbf{Subsets, not the full benchmark.} Question counts per source
         range from 8 to 200 (Table~\ref{tab:datasets}); the giants
-        (eventqa-full, ruler-421K, longmemeval) were measured at one context
+        (eventqa-full, MH-Doc QA 421K, longmemeval) were measured at one context
         each. CIs in Table~\ref{tab:results} reflect this. recsys (TTL) is
         excluded for lack of the grader's data file; InfBench-Sum is a single
         book.
@@ -477,13 +505,16 @@ On the sampled, paper-aligned slices and under the benchmark's exact grading,
 memory competencies---Accurate Retrieval (0.897), Conflict Resolution (0.725
 at $n{=}320$, a 2.5$\times$ margin over that table's best), and Long-Range
 Understanding (0.824)---and matches that table's best Test-Time Learning
-(0.555). Against the 2026 field at sub-dataset level and under a
-reconstruction of its own judge protocol (Section~\ref{sec:field2026}), the
-honest placement is: \textbf{above the leader on retrieval} (AR 91.8 vs.\
-81.2), \textbf{above on conflict resolution on both sub-tasks} (single-hop
-89.4 vs.\ 81.0; multi-hop 56.2 vs.\ 35.0 --- the cell the 2026 leader's
-authors themselves call unsolved), \textbf{above on long-range QA} (85.3
-vs.\ 77.2), and \textbf{behind on ICL test-time learning} (62.5 vs.\ 84.0).
+(0.555, ICL subset). Against the 2026 field at sub-dataset level, under a
+reconstruction of its own judge protocol, and with every margin graded
+against the $\sim$9.7pp backbone-swing yardstick
+(Section~\ref{sec:field2026}), the honest placement is: \textbf{above the
+leader on multi-hop conflict resolution} ($+$21.2pp, the one
+backbone-decidable win, on the cell the leader's authors themselves call
+unsolved), \textbf{marginally above on retrieval} ($+$10.6pp),
+\textbf{directionally ahead but backbone-undecidable on single-hop conflict
+resolution and long-range QA} ($+$8pp), and \textbf{behind on ICL test-time
+learning} ($-$21.5pp).
 None of this is a state-of-the-art or official-benchmark claim
 (Section~\ref{sec:threats}, items 2 and 6). The
 conflict-resolution result still suggests that an explicit
@@ -493,6 +524,33 @@ should improve next; both justify a full-benchmark evaluation. The harness,
 vendored graders, pinned configuration, and per-question result records are
 available in the project repository; \texttt{BASELINE\_SUMMARY.md} reconciles
 every number to its evidence file and comparability tier.
+
+
+\appendix
+\section{Reconstructed judge prompt (verbatim)}
+\label{app:judge}
+Infini Memory's judge prompt is unpublished; its protocol is described only as
+``a binary correctness judgment based on the question, reference answer, and
+model output'' with gpt-5. Our reconstruction, applied verbatim to every
+persisted answer (model \texttt{gpt-5}, default temperature, no few-shot):
+
+\begin{quote}\small\ttfamily
+You are evaluating whether a model's output correctly answers a question,
+given the reference answer.\\[4pt]
+Question: \{question\}\\[2pt]
+Reference Answer: \{reference\}\\[2pt]
+Model Output: \{output\}\\[4pt]
+Does the model output contain the correct answer according to the reference?
+The output may be verbose or phrased differently; judge semantic correctness
+only. Respond with exactly one word: yes or no.
+\end{quote}
+
+Multiple reference aliases are joined with `` | ''; outputs are truncated at
+4{,}000 characters; correctness = the reply begins with ``yes''. Validation
+evidence (judge-vs-official agreement, Cohen's kappa, and a second-judge
+sensitivity run with gpt-4o under the identical prompt) is reported in the
+repository's \texttt{BASELINE\_SUMMARY.md} alongside the per-question judge
+verdict files (\texttt{reports/judge\_regrade/}).
 
 \begin{thebibliography}{9}
 \bibitem{mab}
