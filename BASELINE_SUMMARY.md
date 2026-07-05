@@ -103,7 +103,9 @@ Do not read any per-competency number as full-benchmark coverage:
 - **AR:** measured at 1 context for eventqa_131072/full, ruler (each), 1 of 5
   longmemeval instances; longmemeval abstention questions not yet sampled.
 - **LRU:** infbench_sum at n=1 book (of 100 available).
-- **CR:** first 8 of 100 questions per instance (all 8 instances covered).
+- **CR:** first 40 of 100 questions per instance (320 of 800; all 8 instances
+  covered). Full coverage (100/instance) is a retrieval-only replay away —
+  the persisted memory serves any question count without re-ingest.
 - No single aggregate score is published, by policy.
 
 ## Provenance (applies to all reported runs)
