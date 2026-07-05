@@ -1,5 +1,8 @@
-\documentclass[11pt]{article}
-\usepackage[margin=1in]{geometry}
+\documentclass{article}
+\usepackage{arxiv}            % kourgeorge/arxiv-style preprint layout
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{amsmath}
@@ -7,6 +10,7 @@
 \usepackage[hidelinks]{hyperref}
 \usepackage{xcolor}
 \usepackage{multirow}
+\usepackage{tabularx}
 
 \title{\textbf{nous on MemoryAgentBench:\\A Paper-Faithful Evaluation of a Cognitive Memory Agent}}
 \author{Timur Fatykhov\\\small\textit{with Claude (Anthropic) as evaluation engineer}}
@@ -134,27 +138,31 @@ measured accuracy is attributable to memory, not to model priors.
 questions. Table~\ref{tab:datasets} lists the evaluated subsets.
 
 \begin{table}[h]
-\centering\small
-\begin{tabular}{llrrl}
+\centering\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llrrl@{}}
 \toprule
-Competency & Source & Context size & Questions used & Grader \\
+ & Source & Context size & Questions & Grader \\
 \midrule
-\multirow{4}{*}{CR}
- & factconsolidation\_sh (6k--262k)  & 26k--1.1M chars & $4\times40$ & substring (SQuAD-norm.) \\
- & factconsolidation\_mh (6k--262k)  & 26k--1.1M chars & $4\times40$ & substring (SQuAD-norm.) \\
- & \multicolumn{4}{l}{\footnotesize single-hop (sh) = updated fact; multi-hop (mh) = compose two updated facts} \\[2pt]
-\multirow{6}{*}{AR}
- & eventqa\_65536                     & $\sim$285k chars & 200 (5 ctx $\times$ 40) & all-elements recall \\
- & eventqa\_131072                    & $\sim$570k chars & 100 (1 ctx) & all-elements recall \\
- & eventqa\_full                      & $\sim$2.3M chars & 8  & all-elements recall \\
- & SH-Doc QA / MH-Doc QA (=ruler\_qa1/qa2) & 0.9M / 1.9M chars & 100+100 & substring \\
- & longmemeval\_s*                    & 1.6M chars (1282 turns) & 60 (full set, 1 of 5 ctx) & GPT-4o yes/no judge \\[2pt]
+\multirow{3}{*}{CR}
+ & factconsolidation\_sh (6k--262k)  & 26k--1.1M & $4\times40$ & substring (SQuAD-norm.) \\
+ & factconsolidation\_mh (6k--262k)  & 26k--1.1M & $4\times40$ & substring (SQuAD-norm.) \\
+ & \multicolumn{4}{@{}l@{}}{\scriptsize single-hop (sh) = updated fact; multi-hop (mh) = compose two updated facts} \\
+\addlinespace
+\multirow{5}{*}{AR}
+ & eventqa\_65536                     & $\sim$285k & 200 (5$\,$ctx$\times$40) & all-elements recall \\
+ & eventqa\_131072                    & $\sim$570k & 100 (1 ctx) & all-elements recall \\
+ & eventqa\_full                      & $\sim$2.3M & 8  & all-elements recall \\
+ & SH-/MH-Doc QA (ruler\_qa1/qa2)     & 0.9M / 1.9M & 100+100 & substring \\
+ & longmemeval\_s* (1282 turns)       & 1.6M & 60 (full, 1 of 5 ctx) & GPT-4o yes/no judge \\
+\addlinespace
 \multirow{2}{*}{TTL}
- & icl\_banking77 / clinic150 / nlu   & $\sim$400k chars each & $3\times40$ & parsed-label exact match \\
- & icl\_trec\_coarse / trec\_fine     & $\sim$400k chars each & $2\times40$ & parsed-label exact match \\[2pt]
+ & icl\_banking77 / clinic150 / nlu   & $\sim$400k ea. & $3\times40$ & parsed-label exact \\
+ & icl\_trec\_coarse / trec\_fine     & $\sim$400k ea. & $2\times40$ & parsed-label exact \\
+\addlinespace
 \multirow{2}{*}{LRU}
- & detective\_qa (10 novels)          & $\sim$400k chars each & 68 & substring \\
- & infbench\_sum\_eng                 & 1.75M chars & 1 & GPT-4o 3-call f1 judge \\
+ & detective\_qa (10 novels)          & $\sim$400k ea. & 68 & substring \\
+ & infbench\_sum\_eng                 & 1.75M & 1 & GPT-4o 3-call f1 judge \\
 \bottomrule
 \end{tabular}
 \caption{Evaluated datasets. ``Context size'' is the raw document streamed into
@@ -376,11 +384,13 @@ reports the field at sub-dataset level with \nous{} under both gradings.
 
 \begin{table}[h]
 \centering\scriptsize
-\setlength{\tabcolsep}{3.4pt}
-\begin{tabular}{lrrrr|r|rr|r|rr|r|rr|r|r}
+\setlength{\tabcolsep}{2.6pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{@{}l rrrrr rrr rrr rrr r@{}}
 \toprule
- & \multicolumn{5}{c|}{Accurate Retrieval} & \multicolumn{3}{c|}{TTL} & \multicolumn{3}{c|}{LRU} & \multicolumn{3}{c|}{CR/SF} & \\
-Method & SH-QA & MH-QA & LME & Event & Avg & ICL & Rec & Avg & Summ & DetQA & Avg & FC-SH & FC-MH & Avg & Overall \\
+ & \multicolumn{5}{c}{Accurate Retrieval} & \multicolumn{3}{c}{TTL} & \multicolumn{3}{c}{LRU} & \multicolumn{3}{c}{CR/SF} & \\
+\cmidrule(lr){2-6}\cmidrule(lr){7-9}\cmidrule(lr){10-12}\cmidrule(lr){13-15}
+Method & SH & MH & LME & Evt & \emph{Avg} & ICL & Rec & \emph{Avg} & Sum & Det & \emph{Avg} & SH & MH & \emph{Avg} & Ovr. \\
 \midrule
 Mem0        & 28.0 & 36.0 & 42.0 & 35.5 & 35.4 & 35.2 & 11.2 & 23.2 & 12.4 & 42.3 & 27.4 & 25.0 &  3.0 & 14.0 & 25.0 \\
 RAPTOR      & 32.0 & 39.0 & 38.2 & 48.2 & 39.4 & 56.8 & 14.0 & 35.4 & 25.3 & 45.6 & 35.5 & 16.0 &  2.0 &  9.0 & 29.8 \\
@@ -389,10 +399,10 @@ MemoRAG     & 35.0 & 36.0 & 25.0 & 54.4 & 37.6 & 75.0 & 15.7 & 45.4 & 15.3 & 53.
 LightMem    & 57.0 & 34.0 & 69.2 & 39.2 & 49.9 & 58.0 & 12.7 & 35.4 & 27.5 & 41.0 & 34.2 & 29.0 &  6.0 & 17.5 & 34.2 \\
 REMem       & 62.0 & 42.0 & 62.3 & 41.2 & 51.9 & 80.0 & 13.2 & 46.6 & 23.4 & 47.6 & 35.5 & 32.0 &  9.0 & 20.5 & 38.6 \\
 HippoRAG-v2 & 78.0 & 70.0 & 54.7 & 72.2 & 68.7 & 65.2 & 12.3 & 38.8 & 32.1 & 54.3 & 43.2 & 58.0 &  5.0 & 31.5 & 45.5 \\
-Infini Memory-H & 77.0 & 76.0 & 76.0 & 83.0 & 78.0 & 81.0 & 15.8 & 48.4 & 57.2 & 78.4 & 67.8 & 80.0 & 22.0 & 51.0 & 61.3 \\
-Infini Memory-A & 83.0 & 79.0 & 79.3 & 83.6 & 81.2 & \textbf{84.0} & 18.0 & 51.0 & 59.9 & 77.2 & 68.6 & 81.0 & 35.0 & 58.0 & 64.7 \\
+Infini Mem.-H & 77.0 & 76.0 & 76.0 & 83.0 & 78.0 & 81.0 & 15.8 & 48.4 & 57.2 & 78.4 & 67.8 & 80.0 & 22.0 & 51.0 & 61.3 \\
+Infini Mem.-A & 83.0 & 79.0 & 79.3 & 83.6 & 81.2 & \textbf{84.0} & 18.0 & 51.0 & 59.9 & 77.2 & 68.6 & 81.0 & 35.0 & 58.0 & 64.7 \\
 \midrule
-\nous{} (official graders) & 87.0 & 71.0 & 70.0 & 89.3 & 79.3 & 55.5 & --- & n/a & 59.2 & 82.4 & 70.8 & 88.7 & 56.2 & 72.5 & n/a \\
+\nous{} (official) & 87.0 & 71.0 & 70.0 & 89.3 & 79.3 & 55.5 & --- & n/a & 59.2 & 82.4 & 70.8 & 88.7 & 56.2 & 72.5 & n/a \\
 \nous{} (gpt-5 judge)      & \textbf{91.0} & \textbf{81.0} & 71.7 & \textbf{92.5} & \textbf{84.0} & 62.5 & --- & n/a & 59.2 & \textbf{85.3} & \textbf{72.3} & \textbf{89.4} & \textbf{56.2} & \textbf{72.8} & n/a \\
 \bottomrule
 \end{tabular}
@@ -564,7 +574,7 @@ Infini Memory's judge prompt is unpublished; its protocol is described only as
 model output'' with gpt-5. Our reconstruction, applied verbatim to every
 persisted answer (model \texttt{gpt-5}, default temperature, no few-shot):
 
-\begin{quote}\small\ttfamily
+\begin{quote}\raggedright\small\ttfamily
 You are evaluating whether a model's output correctly answers a question,
 given the reference answer.\\[4pt]
 Question: \{question\}\\[2pt]
