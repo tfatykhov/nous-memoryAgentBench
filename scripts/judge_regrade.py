@@ -23,7 +23,9 @@ import sys
 
 import httpx
 
-JUDGE_MODEL = "gpt-5"
+import os as _os
+JUDGE_MODEL = _os.environ.get("JUDGE_MODEL", "gpt-5")  # second judge: JUDGE_MODEL=gpt-4o
+JUDGE_OUT_PREFIX = _os.environ.get("JUDGE_OUT_PREFIX", "judge")  # e.g. judge4o
 # Reconstructed from the paper's protocol description (no prompt published).
 JUDGE_PROMPT = """You are evaluating whether a model's output correctly answers a question, given the reference answer.
 
@@ -95,7 +97,7 @@ async def main() -> int:
             rows = _rows(path)
             print(f"[{os.path.basename(path)}] judging {len(rows)} answers with {JUDGE_MODEL}...", flush=True)
             judged = await asyncio.gather(*[_judge(client, key, sem, r) for r in rows])
-            out = f"reports/judge_regrade/judge_{os.path.basename(path)}"
+            out = f"reports/judge_regrade/{JUDGE_OUT_PREFIX}_{os.path.basename(path)}"
             with open(out, "w", encoding="utf-8") as f:
                 for r in judged:
                     f.write(json.dumps(r) + "\n")
