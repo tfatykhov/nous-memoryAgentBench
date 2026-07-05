@@ -1,0 +1,9 @@
+{
+  "mode": "replay_no_reingest_coverage",
+  "source": "ruler_qa1_197K",
+  "max_questions_per_instance": 100,
+  "agent_map": {
+    "ruler_qa1_197K#0": "mab-eval-paper-be92dc1c"
+  },
+  "grader": "paper grade_paper dispatch"
+}

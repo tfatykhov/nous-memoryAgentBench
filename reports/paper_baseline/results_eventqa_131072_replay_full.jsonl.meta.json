@@ -1,0 +1,9 @@
+{
+  "mode": "replay_no_reingest_coverage",
+  "source": "eventqa_131072",
+  "max_questions_per_instance": 100,
+  "agent_map": {
+    "eventqa_131072#12": "mab-eval-paper-b858a752"
+  },
+  "grader": "paper grade_paper dispatch"
+}

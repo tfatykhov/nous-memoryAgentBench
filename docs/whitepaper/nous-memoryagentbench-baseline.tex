@@ -30,20 +30,22 @@ from the benchmark's open-source repository and verified line-by-line by an
 independent review---and drive a real \nous{} HTTP server through its full
 production cognitive cycle for every test instance.
 On the evaluated subsets, \nous{} scores
-\textbf{AR 0.897} (n=232, 95\% CI [0.86, 0.94]),
+\textbf{AR 0.836} (n=568, 95\% CI [0.81, 0.87]),
 \textbf{CR 0.725} (n=320, CI [0.68, 0.77]; single-hop 0.887, multi-hop 0.562),
 \textbf{LRU 0.824} (n=68, CI [0.73, 0.91]),
 and \textbf{TTL 0.555} (n=200, CI [0.49, 0.62]).
 The first three are robustly above every method in the benchmark paper's
 results (best per-competency averages there: 71.8\%, 29.5\%, 62.2\%); TTL sits
 at the top of that range (53.9\%). Against the 2026 field at sub-dataset
-level, under a reconstruction of its own gpt-5-judge protocol applied to our
-persisted answers and with margins graded against known backbone swings
-($\sim$9.7pp), \nous{} is above the leading 2026 system on multi-hop conflict
-resolution ($+$21.2pp, exceeding the swing yardstick) and marginally on
-retrieval ($+$10.6pp); directionally ahead on single-hop conflict resolution
-and long-range QA ($+$8pp, within backbone-swing range, undecidable); and
-behind on in-context test-time learning ($-$21.5pp).
+level --- with every already-ingested context now at \emph{full} question
+coverage, under a reconstruction of its own gpt-5-judge protocol, and with
+margins graded against known backbone swings ($\sim$9.7pp) --- \nous{} and
+the leading 2026 system are statistical peers overall: one decidable \nous{}
+win (multi-hop conflict resolution, $+$21.2pp), one decidable loss
+(in-context test-time learning, $-$21.5pp), one weak cell (LongMemEval,
+$-$7.6pp), and everything else (event retrieval $+$8.9, single-hop document
+QA $+$8.0, detective QA $+$8.1, single-hop conflict $+$8.4, multi-hop
+document QA $+$2.0) within backbone-swing range.
 We describe the testing technique, a statistical-validation pass that materially
 corrected one competency's initial estimate, and the threats to validity that
 qualify a direct leaderboard comparison.
@@ -143,10 +145,10 @@ Competency & Source & Context size & Questions used & Grader \\
  & \multicolumn{4}{l}{\footnotesize single-hop (sh) = updated fact; multi-hop (mh) = compose two updated facts} \\[2pt]
 \multirow{6}{*}{AR}
  & eventqa\_65536                     & $\sim$285k chars & 200 (5 ctx $\times$ 40) & all-elements recall \\
- & eventqa\_131072                    & $\sim$570k chars & 8  & all-elements recall \\
+ & eventqa\_131072                    & $\sim$570k chars & 100 (1 ctx) & all-elements recall \\
  & eventqa\_full                      & $\sim$2.3M chars & 8  & all-elements recall \\
- & SH-Doc QA / MH-Doc QA (=ruler\_qa1/qa2) & 0.9M / 1.9M chars & 8+8 & substring \\
- & longmemeval\_s*                    & 1.6M chars (1282 turns) & 8 & GPT-4o yes/no judge \\[2pt]
+ & SH-Doc QA / MH-Doc QA (=ruler\_qa1/qa2) & 0.9M / 1.9M chars & 100+100 & substring \\
+ & longmemeval\_s*                    & 1.6M chars (1282 turns) & 60 (full set, 1 of 5 ctx) & GPT-4o yes/no judge \\[2pt]
 \multirow{2}{*}{TTL}
  & icl\_banking77 / clinic150 / nlu   & $\sim$400k chars each & $3\times40$ & parsed-label exact match \\
  & icl\_trec\_coarse / trec\_fine     & $\sim$400k chars each & $2\times40$ & parsed-label exact match \\[2pt]
@@ -239,6 +241,17 @@ published field value or demonstrably did not:
         \textbf{0.725} (CI [0.676, 0.774]): single-hop 0.887, multi-hop
         0.562, with multi-hop degrading monotonically with context size
         (0.825/0.600/0.525/0.300 at 6k/32k/64k/262k).
+  \item \textbf{AR corrected by full coverage --- replay again.} Extending
+        every already-ingested AR context to its complete question set
+        ($n{=}568$ total) moved every thin cell: LongMemEval fell
+        0.875~($n{=}8$)~$\to$~\textbf{0.700}~($n{=}60$, including the first
+        measurement of its abstention questions), MH-Doc QA fell
+        0.750~$\to$~\textbf{0.710} ($n{=}100$), while eventqa-131072
+        \emph{rose} 0.750~$\to$~\textbf{0.860} ($n{=}100$) and SH-Doc QA held
+        (0.875~$\to$~0.870, $n{=}100$). Consolidated AR: 0.897~($n{=}232$)
+        $\to$ \textbf{0.836} ($n{=}568$, CI [0.806, 0.867]) --- still robustly
+        above the benchmark paper's field, no longer clearly above the 2026
+        leader.
 \end{itemize}
 
 The general lesson---small-sample memory-eval estimates run optimistic; grow
@@ -257,7 +270,7 @@ and every reported number is recomputed from the persisted records.
 \toprule
 Competency & Score & $n$ & 95\% CI & Best published avg.\ / verdict \\
 \midrule
-Accurate Retrieval        & \textbf{0.897} & 232 & [0.857, 0.936] & 0.718 --- \textbf{above, robust} \\
+Accurate Retrieval        & \textbf{0.836} & 568 & [0.806, 0.867] & 0.718 --- \textbf{above, robust} \\
 Conflict Resolution       & \textbf{0.725} & 320 & [0.676, 0.774] & 0.295 --- \textbf{above, robust} \\
 Long-Range Understanding  & \textbf{0.824} & 68  & [0.733, 0.914] & 0.622 --- \textbf{above, robust} \\
 Test-Time Learning (ICL subset) & \textbf{0.555} & 200 & [0.486, 0.624] & 0.539 --- at ceiling \\
@@ -284,8 +297,8 @@ replayed against the same persisted memory that produced the initial run)
 single-hop 0.887 vs.\ multi-hop 0.562 (the benchmark paper reports at most
 $\sim$7\% for multi-hop across its methods); multi-hop degrades with context
 size: 0.825/0.600/0.525/0.300 at 6k/32k/64k/262k. AR eventqa
-0.910/0.750/0.875 (65k/131k/full), SH-Doc/MH-Doc QA 0.875/0.750 (MAB's official names; our source ids ruler\_qa1\_197K/qa2\_421K), longmemeval
-0.875; TTL banking77 0.525, clinic150 0.500, nlu 0.425, trec-coarse 0.875,
+0.910/0.860/0.875 (65k $n{=}200$ / 131k $n{=}100$ / full $n{=}8$), SH-Doc/MH-Doc QA 0.870/0.710 ($n{=}100$ each; MAB's official names --- our source ids ruler\_qa1\_197K/qa2\_421K), longmemeval
+0.700 ($n{=}60$); TTL banking77 0.525, clinic150 0.500, nlu 0.425, trec-coarse 0.875,
 trec-fine 0.450; LRU detective 56/68.
 
 \subsection{Comparison with the benchmark paper's field (2025)}
@@ -312,7 +325,7 @@ Mem0 & agentic memory & 32.6 & 21.2 & 20.7 & 10.0 \\
 GraphRAG & structure-aug. & 40.9 & 24.8 & 19.9 & 8.0 \\
 MIRIX & agentic memory & 47.5 & 24.1 & 25.4 & 8.0 \\
 \midrule
-\textbf{\nous{}} (this work) & cognitive memory & \textbf{89.7} & 55.5$^{\S}$ & \textbf{82.4} & \textbf{72.5} \\
+\textbf{\nous{}} (this work) & cognitive memory & \textbf{83.6} & 55.5$^{\S}$ & \textbf{82.4} & \textbf{72.5} \\
 \bottomrule
 \end{tabular}
 \caption{Per-competency averages (\%). Field rows are from the benchmark's
@@ -334,7 +347,7 @@ Three observations against the paper's table:
         consolidated during sleep, rather than left as contradictory passages
         for retrieval to stumble over.
   \item \textbf{Retrieval and long-range understanding benefit from
-        full-fidelity chunk memory.} AR 0.897 and LRU 0.824 exceed both the
+        full-fidelity chunk memory.} AR 0.836 and LRU 0.824 exceed both the
         RAG family and the long-context family, including on 1.6--2.3M-char
         inputs that no context window holds.
   \item \textbf{Test-time learning is the honest gap.} TTL 0.555 edges the
@@ -379,17 +392,17 @@ HippoRAG-v2 & 78.0 & 70.0 & 54.7 & 72.2 & 68.7 & 65.2 & 12.3 & 38.8 & 32.1 & 54.
 Infini Memory-H & 77.0 & 76.0 & 76.0 & 83.0 & 78.0 & 81.0 & 15.8 & 48.4 & 57.2 & 78.4 & 67.8 & 80.0 & 22.0 & 51.0 & 61.3 \\
 Infini Memory-A & 83.0 & 79.0 & 79.3 & 83.6 & 81.2 & \textbf{84.0} & 18.0 & 51.0 & 59.9 & 77.2 & 68.6 & 81.0 & 35.0 & 58.0 & 64.7 \\
 \midrule
-\nous{} (official graders) & 87.5 & 75.0 & 87.5 & 90.3 & 85.1 & 55.5 & --- & n/a & 59.2 & 82.4 & 70.8 & 88.7 & 56.2 & 72.5 & n/a \\
-\nous{} (gpt-5 judge)      & 87.5$^{o}$ & \textbf{87.5} & \textbf{100.0} & \textbf{92.1} & \textbf{91.8} & 62.5 & --- & n/a & 59.2 & \textbf{85.3} & \textbf{72.3} & \textbf{89.4} & \textbf{56.2} & \textbf{72.8} & n/a \\
+\nous{} (official graders) & 87.0 & 71.0 & 70.0 & 89.3 & 79.3 & 55.5 & --- & n/a & 59.2 & 82.4 & 70.8 & 88.7 & 56.2 & 72.5 & n/a \\
+\nous{} (gpt-5 judge)      & \textbf{91.0} & \textbf{81.0} & 71.7 & \textbf{92.5} & \textbf{84.0} & 62.5 & --- & n/a & 59.2 & \textbf{85.3} & \textbf{72.3} & \textbf{89.4} & \textbf{56.2} & \textbf{72.8} & n/a \\
 \bottomrule
 \end{tabular}
 \caption{2026 field (Infini Memory~\cite{infini} Table~1, full benchmark,
 gpt-5-mini base, gpt-5 judge; verbatim-verified) vs.\ \nous{} slices under
-both gradings. \nous{} sample sizes: SH-QA/MH-QA/LME $n{=}8$ each, Event
-pooled $n{=}216$, ICL $n{=}200$, Summ $n{=}1$, DetQA $n{=}68$, FC-SH/FC-MH
-$n{=}160$ each (full 40 questions/instance, replayed on the same persisted
-memory that produced the original runs). $^{o}$~official grading (answers
-not persisted for re-judging). Rec is data-blocked, so \nous{} TTL Avg and
+both gradings. \nous{} sample sizes: SH-QA/MH-QA $n{=}100$ each (full
+question sets), LME $n{=}60$ (full set of its context, incl.\ abstention
+questions), Event pooled $n{=}308$, ICL $n{=}200$, Summ $n{=}1$, DetQA
+$n{=}68$, FC-SH/FC-MH $n{=}160$ each --- all replayed on the same persisted
+memory that produced the original runs. Rec is data-blocked, so \nous{} TTL Avg and
 Overall are honestly n/a. \nous{}'s judge is a disclosed reconstruction
 (theirs is unpublished). Base models differ (claude-sonnet-5 vs.\
 gpt-5-mini).}
@@ -404,29 +417,37 @@ each margin against that yardstick rather than treating any lead as
 architecture-attributable:
 
 \begin{itemize}
-  \item \textbf{FC-MH (multi-hop conflict): margin $+$21.2pp (56.2 vs.\
-        35.0) --- exceeds the known backbone swing}; the one comparative
-        claim that survives the confound. It is also the cell Infini's
-        authors identify as unsolved (``multi-hop forgetting cannot be
-        settled at write time'').
-  \item \textbf{AR: margin $+$10.6pp (91.8 vs.\ 81.2) --- marginally above
-        the swing yardstick}; directionally ahead, weakly
-        backbone-decidable.
+  \item \textbf{FC-MH (multi-hop conflict, $n{=}160$): margin $+$21.2pp
+        (56.2 vs.\ 35.0) --- exceeds the known backbone swing}; the one
+        comparative claim that survives the confound, robust under all three
+        grading protocols (0.562 official, 0.562 gpt-5, 0.469 gpt-4o --- all
+        above 0.350). It is also the cell Infini's authors identify as unsolved
+        (``multi-hop forgetting cannot be settled at write time'').
+  \item \textbf{ICL: $-$21.5pp behind (62.5 vs.\ 84.0)} --- the one
+        decidable loss; a real capability gap, not a grading artifact,
+        plausibly reflecting Infini's up-to-seven-round agentic retrieval
+        loop surfacing more labeled exemplars per query.
+  \item \textbf{AR: margin $+$2.8pp (84.0 vs.\ 81.2) --- statistical peer.}
+        Full coverage collapsed the earlier $+$10.6pp margin: the thin
+        $n{=}8$ cells (LME, MH-Doc QA) had been optimistic draws. Within AR,
+        Event ($+$8.9) and SH-Doc QA ($+$8.0) lead, MH-Doc QA is a wash
+        ($+$2.0), and \textbf{LME is nominally behind ($-$7.6, 71.7 vs.\
+        79.3; Wilson 95\% CI on our $n{=}60$ cell [0.58, 0.80])} --- with a
+        construct-validity caveat: Infini's table labels LME a
+        ``reconstructed multi-session variant,'' which matches \mab{}'s own
+        \texttt{longmemeval\_s*} naming but is not confirmed to be the
+        identical question set, and our cell covers 1 of 5 LME contexts. We
+        therefore report the gap as indicative, not a decided weak cell.
   \item \textbf{FC-SH ($+$8.4pp) and DetQA ($+$8.1pp): within the
         backbone-swing range --- directionally ahead but
         backbone-undecidable}; we do not claim these as architecture wins.
-  \item \textbf{ICL: $-$21.5pp behind (62.5 vs.\ 84.0)} --- a real
-        capability gap, not a grading artifact, plausibly reflecting
-        Infini's up-to-seven-round agentic retrieval loop surfacing more
-        labeled exemplars per query.
 \end{itemize}
 
 Averaging note: the AR ``Avg'' column follows Infini's method (macro mean of
 four sub-dataset accuracies) for apples-to-apples --- a method that is
-statistically weak on both sides, since it weights $n{=}8$ cells (Wilson 95\%
-CIs $\approx$ [0.53, 0.98] at 7/8) equally with $n{=}216$ cells. \nous{}'s
-item-weighted (micro) AR is 0.897 official / 0.922 judge-graded --- close to
-the macro values, direction unchanged. Two secondary findings: the
+statistically weak on both sides (it weights a 60-item cell equally with a
+308-item cell). \nous{}'s item-weighted (micro) AR is 0.836 official / 0.880
+judge-graded, vs.\ macro 79.3 / 84.0. Two secondary findings: the
 strict-vs-judge delta is $+$0--12.5pp on verbose-answer tasks and
 $\approx$0 on short-entity tasks (CR), so official grading was a
 conservative floor; and \nous{} multi-hop conflict resolution
@@ -503,19 +524,27 @@ retrieved context; we report the curve as a finding, not a diagnosis.
 
 On the sampled, paper-aligned slices and under the benchmark's exact grading,
 \nous{} exceeds every method reported in the \mab{} paper on three of four
-memory competencies---Accurate Retrieval (0.897), Conflict Resolution (0.725
+memory competencies---Accurate Retrieval (0.836), Conflict Resolution (0.725
 at $n{=}320$, a 2.5$\times$ margin over that table's best), and Long-Range
 Understanding (0.824)---and matches that table's best Test-Time Learning
-(0.555, ICL subset). Against the 2026 field at sub-dataset level, under a
-reconstruction of its own judge protocol, and with every margin graded
-against the $\sim$9.7pp backbone-swing yardstick
-(Section~\ref{sec:field2026}), the honest placement is: \textbf{above the
-leader on multi-hop conflict resolution} ($+$21.2pp, the one
-backbone-decidable win, on the cell the leader's authors themselves call
-unsolved), \textbf{marginally above on retrieval} ($+$10.6pp),
-\textbf{directionally ahead but backbone-undecidable on single-hop conflict
-resolution and long-range QA} ($+$8pp), and \textbf{behind on ICL test-time
-learning} ($-$21.5pp).
+(0.555, ICL subset). Against the 2026 field at sub-dataset level, at full
+question coverage of every ingested context, under a reconstruction of its
+own judge protocol, and with every margin graded against the $\sim$9.7pp
+backbone-swing yardstick (Section~\ref{sec:field2026}), the honest placement
+is: \textbf{\nous{} and the 2026 leader are statistical peers} --- one
+decidable \nous{} win (\textbf{multi-hop conflict resolution}, $+$21.2pp,
+tri-protocol robust, on the cell the leader's authors themselves call
+unsolved), one decidable loss (\textbf{ICL test-time learning}, $-$21.5pp),
+one nominally-behind cell (\textbf{LongMemEval}, $-$7.6pp, comparability
+unconfirmed), and every other margin ($+$2.0 to $+$8.9pp) within
+backbone-swing range. One dose-response architectural finding stands:
+\textbf{multi-hop conflict resolution degrades monotonically with context
+size} (0.825/0.600/0.525/0.300 at 6k/32k/64k/262k --- length is the x-axis,
+$n{=}40$ per point). The MH-Doc QA and LME corrections, by contrast, are
+sampling corrections (their x-axis was $n$, not length; each queries a
+single fixed-length context), and we report them as such: our $n{=}8$
+estimates were optimistic, full coverage fixed them --- the validation loop
+working as intended.
 None of this is a state-of-the-art or official-benchmark claim
 (Section~\ref{sec:threats}, items 2 and 6). The
 conflict-resolution result still suggests that an explicit

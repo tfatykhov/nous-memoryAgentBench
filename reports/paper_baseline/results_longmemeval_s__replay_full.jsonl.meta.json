@@ -1,0 +1,9 @@
+{
+  "mode": "replay_no_reingest_coverage",
+  "source": "longmemeval_s*",
+  "max_questions_per_instance": 100,
+  "agent_map": {
+    "longmemeval_s*#17": "mab-eval-paper-277c41c3"
+  },
+  "grader": "paper grade_paper dispatch"
+}
