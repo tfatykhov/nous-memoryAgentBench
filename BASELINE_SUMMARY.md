@@ -20,8 +20,8 @@ nous answers RE-GRADED under a reconstruction of their judge protocol**
 | Sub-dataset | nous (gpt-5 judge) | Infini-A | |
 |---|---|---|---|
 | AR avg (SH-QA/MH-QA/LME/Event) | **91.8** (87.5/87.5/100.0/92.1) | 81.2 | above |
-| FC-SH / FC-MH (conflict) | **89.4 / 56.2** (n=160 each) | 81.0 / 35.0 | above on both |
-| DetQA (long-range) | **85.3** (n=68) | 77.2 | above |
+| FC-SH / FC-MH (conflict) | **89.4 / 56.2** (n=160 each) | 81.0 / 35.0 | FC-MH decidable win; FC-SH backbone-undecidable |
+| DetQA (long-range) | **85.3** (n=68) | 77.2 | above (backbone-undecidable) |
 | Summ | 59.2 (n=1) | 59.9 | par |
 | ICL (test-time learning) | 62.5 (n=200) | **84.0** | **behind** |
 
@@ -81,7 +81,7 @@ below to full-benchmark "overall" figures.
 |---|---|---|---|---|
 | **CR 0.725** (232/320; sh 0.887, mh 0.562) | 320 | T1 | `reports/paper_baseline/results_conflict_resolution_replay_n320.jsonl` | ALL 40 Q/instance replayed on the same persisted memory; content-verified agent mapping. Supersedes the n=64 0.766 (`reports/paper_replay/run.log`, optimistic first-8 draw) |
 | CR gpt-5-judge 0.728 (sh 0.894, mh 0.562) | 320 | T2* | `reports/judge_regrade/judge_results_conflict_resolution_replay_n320.jsonl` | 2026-protocol regrade (reconstructed judge) |
-| AR/LRU/TTL gpt-5-judge regrades | 484 | T2* | `reports/judge_regrade/judge_results_*.jsonl` | Event 92.1, MH-QA 87.5, LME 100.0, DetQA 85.3, ICL 62.5 |
+| AR/LRU/TTL gpt-5-judge regrades | 500 | T2* | `reports/judge_regrade/judge_results_*.jsonl` | Event 92.1, MH-QA 87.5, LME 100.0, DetQA 85.3, ICL 62.5 |
 | **AR 0.897** (208/232) | 232 | T1 | consolidated from the five files below | eventqa_65536-weighted |
 | — eventqa_65536 0.910 | 200 | T1 | `reports/paper_baseline/results_accurate_retrieval_eventqa_65536.jsonl` | 5 contexts x 40 Q |
 | — eventqa_131072 0.750 | 8 | T1 | `.../results_accurate_retrieval_eventqa_131072.jsonl` | |
