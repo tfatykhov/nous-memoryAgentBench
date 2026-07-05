@@ -417,11 +417,11 @@ each margin against that yardstick rather than treating any lead as
 architecture-attributable:
 
 \begin{itemize}
-  \item \textbf{FC-MH (multi-hop conflict): margin $+$21.2pp (56.2 vs.\
-        35.0) --- exceeds the known backbone swing}; the one comparative
-        claim that survives the confound, robust under all three grading
-        protocols (0.562 official, 0.562 gpt-5, 0.469 gpt-4o --- all above
-        0.350). It is also the cell Infini's authors identify as unsolved
+  \item \textbf{FC-MH (multi-hop conflict, $n{=}160$): margin $+$21.2pp
+        (56.2 vs.\ 35.0) --- exceeds the known backbone swing}; the one
+        comparative claim that survives the confound, robust under all three
+        grading protocols (0.562 official, 0.562 gpt-5, 0.469 gpt-4o --- all
+        above 0.350). It is also the cell Infini's authors identify as unsolved
         (``multi-hop forgetting cannot be settled at write time'').
   \item \textbf{ICL: $-$21.5pp behind (62.5 vs.\ 84.0)} --- the one
         decidable loss; a real capability gap, not a grading artifact,
@@ -431,8 +431,13 @@ architecture-attributable:
         Full coverage collapsed the earlier $+$10.6pp margin: the thin
         $n{=}8$ cells (LME, MH-Doc QA) had been optimistic draws. Within AR,
         Event ($+$8.9) and SH-Doc QA ($+$8.0) lead, MH-Doc QA is a wash
-        ($+$2.0), and \textbf{LME is a genuine weak cell ($-$7.6, 71.7 vs.\
-        79.3)}.
+        ($+$2.0), and \textbf{LME is nominally behind ($-$7.6, 71.7 vs.\
+        79.3; Wilson 95\% CI on our $n{=}60$ cell [0.58, 0.80])} --- with a
+        construct-validity caveat: Infini's table labels LME a
+        ``reconstructed multi-session variant,'' which matches \mab{}'s own
+        \texttt{longmemeval\_s*} naming but is not confirmed to be the
+        identical question set, and our cell covers 1 of 5 LME contexts. We
+        therefore report the gap as indicative, not a decided weak cell.
   \item \textbf{FC-SH ($+$8.4pp) and DetQA ($+$8.1pp): within the
         backbone-swing range --- directionally ahead but
         backbone-undecidable}; we do not claim these as architecture wins.
@@ -530,13 +535,16 @@ is: \textbf{\nous{} and the 2026 leader are statistical peers} --- one
 decidable \nous{} win (\textbf{multi-hop conflict resolution}, $+$21.2pp,
 tri-protocol robust, on the cell the leader's authors themselves call
 unsolved), one decidable loss (\textbf{ICL test-time learning}, $-$21.5pp),
-one weak cell (\textbf{LongMemEval}, $-$7.6pp), and every other margin
-($+$2.0 to $+$8.9pp) within backbone-swing range. A consistent architectural
-signal runs through the losses: performance degrades where answers require
-composing evidence across scale --- multi-hop conflict chains by context
-size (0.825$\to$0.300), multi-hop document QA, and long multi-session
-conversation --- while single-hop retrieval and consolidation at any single
-scale remain strong.
+one nominally-behind cell (\textbf{LongMemEval}, $-$7.6pp, comparability
+unconfirmed), and every other margin ($+$2.0 to $+$8.9pp) within
+backbone-swing range. One dose-response architectural finding stands:
+\textbf{multi-hop conflict resolution degrades monotonically with context
+size} (0.825/0.600/0.525/0.300 at 6k/32k/64k/262k --- length is the x-axis,
+$n{=}40$ per point). The MH-Doc QA and LME corrections, by contrast, are
+sampling corrections (their x-axis was $n$, not length; each queries a
+single fixed-length context), and we report them as such: our $n{=}8$
+estimates were optimistic, full coverage fixed them --- the validation loop
+working as intended.
 None of this is a state-of-the-art or official-benchmark claim
 (Section~\ref{sec:threats}, items 2 and 6). The
 conflict-resolution result still suggests that an explicit

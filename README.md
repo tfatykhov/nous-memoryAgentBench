@@ -34,13 +34,13 @@ backbone swing:
 - **Statistical peers overall** (full question coverage of every ingested context):
   one decidable nous win — **multi-hop conflict resolution +21.2pp** (0.562 vs 0.350,
   robust under all three grading protocols; the cell their own paper calls unsolved) —
-  and one decidable loss — **ICL −21.5pp**. LongMemEval is a weak cell (71.7 vs 79.3);
+  and one decidable loss — **ICL −21.5pp**. LongMemEval is nominally behind (71.7 vs 79.3; comparability unconfirmed — see BASELINE_SUMMARY);
   everything else (retrieval +2.8 macro, Event +8.9, SH-Doc QA +8.0, DetQA +8.1,
   FC-SH +8.4, MH-Doc QA +2.0) sits within the ~9.7pp backbone-swing band.
-- Architectural signal: performance **degrades where evidence must be composed across
-  scale** — multi-hop conflict chains (0.83 → 0.30 from 6k → 262k chars), multi-hop
-  document QA, and long multi-session conversation — while single-scale retrieval and
-  consolidation stay strong.
+- One dose-response architectural finding: **multi-hop conflict resolution degrades
+  monotonically with context size** (0.83 → 0.30 from 6k → 262k chars; length is the
+  x-axis, n=40 per point). The MH-Doc QA / LongMemEval revisions were *sampling*
+  corrections (n=8 → 100/60 on fixed-length contexts), reported as such.
 
 Caveats live next to every claim: slices not the full benchmark, base-model confound flagged
 per claim, judge reconstruction published verbatim (white paper appendix), no SOTA claim.

@@ -20,7 +20,7 @@ nous answers RE-GRADED under a reconstruction of their judge protocol**
 | Sub-dataset | nous (gpt-5 judge) | Infini-A | |
 |---|---|---|---|
 | AR avg (SH-QA/MH-QA/LME/Event) | **84.0** (91.0/81.0/71.7/92.5) | 81.2 | **statistical peer** (+2.8, inside backbone noise) |
-| — LME alone (n=60, full set) | 71.7 | **79.3** | weak cell (-7.6) |
+| — LME alone (n=60, full set of 1 of 5 ctx) | 71.7 | **79.3** | nominally behind (-7.6); comparability unconfirmed — Infini labels LME a "reconstructed multi-session variant" (matches MAB's own longmemeval_s* naming, question-set identity unverified) |
 | FC-SH / FC-MH (conflict) | **89.4 / 56.2** (n=160 each) | 81.0 / 35.0 | FC-MH decidable win; FC-SH backbone-undecidable |
 | DetQA (long-range) | **85.3** (n=68) | 77.2 | above (backbone-undecidable) |
 | Summ | 59.2 (n=1) | 59.9 | par |
@@ -28,10 +28,13 @@ nous answers RE-GRADED under a reconstruction of their judge protocol**
 
 **Verdict (2026-07-06, full coverage of every ingested context):** nous and the
 2026 leader are statistical peers overall — one decidable win (FC-MH +21.2pp,
-tri-protocol robust), one decidable loss (ICL -21.5pp), LME a weak cell
-(-7.6pp), all else within the ~9.7pp backbone band. Consistent architectural
-signal: degradation wherever evidence must be composed across scale (FC-MH by
-context size, MH-Doc QA, long multi-session conversation).
+n=160, tri-protocol robust), one decidable loss (ICL -21.5pp, n=200), LME
+nominally behind (-7.6pp, comparability unconfirmed), all else within the
+~9.7pp backbone band. One dose-response architectural finding: FC-MH degrades
+monotonically with context SIZE (length is the x-axis, n=40/point). The
+MH-Doc QA and LME revisions were SAMPLING corrections (x-axis was n, on
+fixed-length contexts) — not scale effects; reported as such per prod-nous
+review #3 (consult 2026-07-06).
 
 Under the official strict graders the same numbers are: AR macro 79.3
 (SH-QA 87.0 / MH-QA 71.0 / LME 70.0 / Event 89.3; micro 475/568 = 0.836,
