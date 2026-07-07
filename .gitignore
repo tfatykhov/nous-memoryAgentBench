@@ -21,3 +21,4 @@ data/
 docs/whitepaper/*.log
 docs/whitepaper/*.aux
 docs/whitepaper/*.out
+backups/
