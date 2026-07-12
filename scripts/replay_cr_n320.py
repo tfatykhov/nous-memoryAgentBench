@@ -108,9 +108,14 @@ async def main() -> int:
         pool_by_size[size] = found
         assigned.update(found)
 
-    # --- replay all 8 instances x 40 questions (fresh results file + meta)
+    # --- replay instances (fresh results file, or RESUME: skip persisted instances)
     os.makedirs(os.path.dirname(RESULTS), exist_ok=True)
-    open(RESULTS, "w").close()
+    done: set[str] = set()
+    if os.environ.get("MAB_RESUME") == "1" and os.path.exists(RESULTS):
+        done = {json.loads(l)["instance_id"] for l in open(RESULTS, encoding="utf-8") if l.strip()}
+        print(f"RESUME: skipping already-persisted instances: {sorted(done)}", flush=True)
+    else:
+        open(RESULTS, "w").close()
     from mab.cli import _git_sha
     from mab.datasets.loader import dataset_fingerprint
     agent_map: dict[str, str] = {}
@@ -120,6 +125,9 @@ async def main() -> int:
         size = inst.source.rsplit("_", 1)[-1]
         agent_id = pool_by_size[size].pop(0)
         agent_map[inst.source] = agent_id
+        if inst.instance_id in done:
+            print(f"[{inst.source}] already persisted — skipping", flush=True)
+            continue
         print(f"[{inst.source}] agent={agent_id[-12:]} questions={len(inst.questions)}", flush=True)
         rows = await replay_agent(settings, config, agent_id, inst, PAPER_CR_PROMPT, grader)
         _persist(RESULTS, rows)
