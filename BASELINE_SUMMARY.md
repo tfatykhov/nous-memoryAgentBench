@@ -154,3 +154,17 @@ Do not read any per-competency number as full-benchmark coverage:
 | `reports/paper_ar/smoke_eventqa.log`, `ar_rest.log` | historical smoke/partial runs; eventqa numbers superseded by the n=200 JSONL |
 | `scripts/replay_paper_prompt.py` | HISTORICAL driver (produced CR 0.766); use `scripts/run_paper_baseline.py` for new runs |
 | TTL icl JSONL first-8 duplicate rows | superseded by the n=40/source rows in the same file (dedup rule above) |
+
+## Spreading-activation A/B (2026-07-12, nous @ c648008)
+
+nous #555 (SA content fixes) + #556 (heart-fact seeds default) postdate the
+baseline. SA is auto-gated at graph density > 3.0; eval agents sit at <= 2.7,
+so SA never fired in any published run -> published numbers unaffected. Forced
+ON (`configs/prod_memory_spreading_on.env`) and replayed CR n=320 against the
+restored baseline memory (`nous_mab_baseline`, from the 2026-07-06 dump — the
+live nous_mab was wiped by a nous-side A/B; the backup was the only copy):
+**0.703 vs 0.725 baseline (-2.2pp; paired 32 gains / 39 regressions, sign-test
+p~0.48 = statistical no-op)**. Multi-hop flat (+1/160) — spreading does NOT
+rescue FC-MH, pointing the multi-hop bottleneck at edge FORMATION or reasoning,
+not traversal. Single-hop mildly hurt (-8/160, noise injection). Evidence:
+`results_conflict_resolution_replay_n320_spreadON.jsonl`.
