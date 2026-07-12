@@ -29,7 +29,11 @@ from mab.paper_prompts import PAPER_CR_PROMPT
 from mab.paper_run import _persist
 from mab.replay import replay_agent
 
-RESULTS = "reports/paper_baseline/results_conflict_resolution_replay_n320.jsonl"
+import sys as _sys
+MAX_Q = int(_sys.argv[1]) if len(_sys.argv) > 1 else 40
+TAG = _sys.argv[2] if len(_sys.argv) > 2 else ""
+CONFIG_FILE = _sys.argv[3] if len(_sys.argv) > 3 else "configs/prod_memory.env"
+RESULTS = f"reports/paper_baseline/results_conflict_resolution_replay_n{MAX_Q * 8}{TAG}.jsonl"
 
 
 def _probe_for(ctx: str, larger: list[str], width: int = 60) -> str:
@@ -78,8 +82,8 @@ def _agents_containing(settings: HarnessSettings, agents: list[str], probe: str)
 
 async def main() -> int:
     settings = HarnessSettings()
-    config = config_from_env_file("configs/prod_memory.env")
-    instances = load_competency(Competency.CONFLICT_RESOLUTION, max_questions_per_instance=40)
+    config = config_from_env_file(CONFIG_FILE)
+    instances = load_competency(Competency.CONFLICT_RESOLUTION, max_questions_per_instance=MAX_Q)
     assert len(instances) == 8, f"expected 8 CR instances, got {len(instances)}"
 
     # --- content-verified mapping: size-context -> its 2 agents (sh/mh share context)
@@ -104,9 +108,14 @@ async def main() -> int:
         pool_by_size[size] = found
         assigned.update(found)
 
-    # --- replay all 8 instances x 40 questions (fresh results file + meta)
+    # --- replay instances (fresh results file, or RESUME: skip persisted instances)
     os.makedirs(os.path.dirname(RESULTS), exist_ok=True)
-    open(RESULTS, "w").close()
+    done: set[str] = set()
+    if os.environ.get("MAB_RESUME") == "1" and os.path.exists(RESULTS):
+        done = {json.loads(l)["instance_id"] for l in open(RESULTS, encoding="utf-8") if l.strip()}
+        print(f"RESUME: skipping already-persisted instances: {sorted(done)}", flush=True)
+    else:
+        open(RESULTS, "w").close()
     from mab.cli import _git_sha
     from mab.datasets.loader import dataset_fingerprint
     agent_map: dict[str, str] = {}
@@ -116,6 +125,9 @@ async def main() -> int:
         size = inst.source.rsplit("_", 1)[-1]
         agent_id = pool_by_size[size].pop(0)
         agent_map[inst.source] = agent_id
+        if inst.instance_id in done:
+            print(f"[{inst.source}] already persisted — skipping", flush=True)
+            continue
         print(f"[{inst.source}] agent={agent_id[-12:]} questions={len(inst.questions)}", flush=True)
         rows = await replay_agent(settings, config, agent_id, inst, PAPER_CR_PROMPT, grader)
         _persist(RESULTS, rows)
@@ -126,7 +138,7 @@ async def main() -> int:
     with open(RESULTS + ".meta.json", "w", encoding="utf-8") as mf:
         json.dump({
             "mode": "replay_no_reingest (same persisted memory as the published 49/64)",
-            "competency": "conflict_resolution", "questions_per_instance": 40,
+            "competency": "conflict_resolution", "questions_per_instance": MAX_Q, "config_file": CONFIG_FILE, "tag": TAG,
             "prompt": "PAPER_CR_PROMPT", "grader": grader.metric,
             "agent_map": agent_map, "config_file": "configs/prod_memory.env",
             "harness_git_sha": _git_sha(), "nous_git_sha": _git_sha(str(settings.nous_repo)),
