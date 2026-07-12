@@ -168,3 +168,19 @@ p~0.48 = statistical no-op)**. Multi-hop flat (+1/160) — spreading does NOT
 rescue FC-MH, pointing the multi-hop bottleneck at edge FORMATION or reasoning,
 not traversal. Single-hop mildly hurt (-8/160, noise injection). Evidence:
 `results_conflict_resolution_replay_n320_spreadON.jsonl`.
+
+## F053-remediation A/B (2026-07-12, nous @ 3a381b2)
+
+nous #557: the F053 sleep-prune had ERASED the episode graph layer (closed
+episodes treated as dead) — 0 anchor edges in all eval agents, bug active
+during every baseline build. Remediated a CLONE (nous_mab_f053) with the
+official backfill (7,987 anchors restored + 324 densified related_to), then
+replayed CR n=320 with spreading FORCED ON. 2x2 result (identical questions):
+baseline (broken graph, SA off) **0.725** > SA-only 0.703 > f053+SA **0.684**
+(FC-SH 0.863, FC-MH 0.506). **Monotonic: every graph-amplification step hurts
+CR.** Conclusions: (1) published numbers stand — best arm; (2) FC-MH is NOT
+connectivity-limited — restoring the hypothesized-missing edges made it worse
+(hub explosion: episode anchors activate wrong-serial sibling facts); the
+lever is supersession-aware retrieval/reasoning; (3) keep SA gated off for
+dense-fact QA even post-F053 (replicates the backfill script's own prod
+warning at n=320). Evidence: `results_conflict_resolution_replay_n320_f053_spreadON.jsonl`.
