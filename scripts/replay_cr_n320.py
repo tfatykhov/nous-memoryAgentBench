@@ -31,7 +31,9 @@ from mab.replay import replay_agent
 
 import sys as _sys
 MAX_Q = int(_sys.argv[1]) if len(_sys.argv) > 1 else 40
-RESULTS = f"reports/paper_baseline/results_conflict_resolution_replay_n{MAX_Q * 8}.jsonl"
+TAG = _sys.argv[2] if len(_sys.argv) > 2 else ""
+CONFIG_FILE = _sys.argv[3] if len(_sys.argv) > 3 else "configs/prod_memory.env"
+RESULTS = f"reports/paper_baseline/results_conflict_resolution_replay_n{MAX_Q * 8}{TAG}.jsonl"
 
 
 def _probe_for(ctx: str, larger: list[str], width: int = 60) -> str:
@@ -80,7 +82,7 @@ def _agents_containing(settings: HarnessSettings, agents: list[str], probe: str)
 
 async def main() -> int:
     settings = HarnessSettings()
-    config = config_from_env_file("configs/prod_memory.env")
+    config = config_from_env_file(CONFIG_FILE)
     instances = load_competency(Competency.CONFLICT_RESOLUTION, max_questions_per_instance=MAX_Q)
     assert len(instances) == 8, f"expected 8 CR instances, got {len(instances)}"
 
@@ -128,7 +130,7 @@ async def main() -> int:
     with open(RESULTS + ".meta.json", "w", encoding="utf-8") as mf:
         json.dump({
             "mode": "replay_no_reingest (same persisted memory as the published 49/64)",
-            "competency": "conflict_resolution", "questions_per_instance": MAX_Q,
+            "competency": "conflict_resolution", "questions_per_instance": MAX_Q, "config_file": CONFIG_FILE, "tag": TAG,
             "prompt": "PAPER_CR_PROMPT", "grader": grader.metric,
             "agent_map": agent_map, "config_file": "configs/prod_memory.env",
             "harness_git_sha": _git_sha(), "nous_git_sha": _git_sha(str(settings.nous_repo)),
