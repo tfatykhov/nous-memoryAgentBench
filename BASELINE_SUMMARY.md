@@ -238,3 +238,15 @@ is.** VERDICT: read path saturated; prod right to keep CE off at retrieval;
 the fix is WRITE-PATH adjudication (enumerative extraction + supersession
 resolution at store time -> context carries ONE current fact). Evidence:
 probe_query_dilution.*, probe_ce_sim.*, results_*_budget33k/_ceON.jsonl.
+
+## Forced-recall arm + program close (2026-07-13)
+
+Prompt-forced recall_deep verification (stand-in for a server-side pre-turn
+call): **0.738 vs 0.725 (+1.3pp; sh identical 142/142, mh +4)** — the only arm
+above baseline, but marginal. METHOD CORRECTION: the earlier "9/12 recoverable"
+estimate was regression-to-the-mean (re-asking only LOST questions samples a
+stochastic flip one-sidedly); the true deterministic-recall effect is the net
++1-4 questions. VERDICT: behavior path saturated too; pre-turn recall_deep not
+worth building for accuracy. **Eight arms measured; write-path adjudication
+(enumerative extraction + store-time supersession) is the sole remaining lever
+with headroom.** Evidence: results_*_forcedrecall.jsonl.
