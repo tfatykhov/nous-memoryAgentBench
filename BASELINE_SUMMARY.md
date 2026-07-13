@@ -204,3 +204,21 @@ agentic recall. Per-instance deltas of +-3-8 are run variance; only ~n=320
 aggregates are interpretable. Actionable nous lever: supersession-aware
 pre-turn injection reliability (not graph scoring). Evidence:
 results_*_558regress.jsonl, results_*_f053_spreadON_558.jsonl, probe_6k_lost.log.
+
+## #559 injection-fix A/B + 4th cell (2026-07-13, nous @ d624bb3)
+
+Full matrix closed (all n=320, same questions, same preserved memory):
+non-SA arms cluster **0.713-0.725** — published 0.725, replicate 0.716,
+anchors-only (4th cell) 0.713, anchors+#559-flags (current-prod approx) 0.713;
+flags-on-erased-graph 0.675 (lone outlier, most plausibly variance since
+anchors were proven null and D=C exactly). **#559 stack = null on CR**: the
+pin guarantees top-K of a search already ranking wrong-serial facts (the
+failures were never top-K — that's why injection missed); the backstop never
+fires (injection is non-empty-but-wrong, not empty); lineage data-starved
+(19 superseded_by rows). Probes' 9/12 recovery came from AGENTIC recall
+(multi-step query reformulation) which the pin can't replicate. NOUS LEVERS:
+threshold-based backstop (weak/ambiguous top-hit, not empty), agentic-style
+query reformulation in pre-turn retrieval, supersession backfill for lineage
+density. Current prod state scores ~= published; flags safe to keep land-dark.
+Evidence: results_*_559on.jsonl, results_*_f053_flagsoff.jsonl,
+results_*_f053_559on.jsonl.
