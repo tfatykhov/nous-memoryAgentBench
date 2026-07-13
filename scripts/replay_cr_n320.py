@@ -140,7 +140,7 @@ async def main() -> int:
             "mode": "replay_no_reingest (same persisted memory as the published 49/64)",
             "competency": "conflict_resolution", "questions_per_instance": MAX_Q, "config_file": CONFIG_FILE, "tag": TAG,
             "prompt": "PAPER_CR_PROMPT", "grader": grader.metric,
-            "agent_map": agent_map, "config_file": "configs/prod_memory.env",
+            "agent_map": agent_map,
             "harness_git_sha": _git_sha(), "nous_git_sha": _git_sha(str(settings.nous_repo)),
             "dataset": dataset_fingerprint(Competency.CONFLICT_RESOLUTION),
         }, mf, indent=2)

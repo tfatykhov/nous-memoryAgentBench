@@ -1,0 +1,34 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+candidate agents: ['ory-3ac49da7', 'ory-28b19787', 'ory-39580836', 'ory-84e808c8', 'ory-9a5951c2', 'ory-089599da', 'ory-82ec74a5', 'ory-22353a27']
+   262k: probe ' government is Marcial Morales Martí'... -> 2 unassigned ['ory-39580836', 'ory-9a5951c2']
+    64k: probe 'ition of midfielder.\n4123. The autho'... -> 2 unassigned ['ory-84e808c8', 'ory-089599da']
+    32k: probe 'reated by Shigeru Miyamoto.\n2196. Jo'... -> 2 unassigned ['ory-3ac49da7', 'ory-82ec74a5']
+     6k: probe 'd States of America government is Do'... -> 2 unassigned ['ory-28b19787', 'ory-22353a27']
+[factconsolidation_mh_6k] agent=ory-28b19787 questions=40
+  -> 31/40 correct, errored=0
+[factconsolidation_mh_32k] agent=ory-3ac49da7 questions=40
+  -> 23/40 correct, errored=0
+[factconsolidation_mh_64k] agent=ory-84e808c8 questions=40
+  -> 23/40 correct, errored=0
+[factconsolidation_mh_262k] agent=ory-39580836 questions=40
+  -> 10/40 correct, errored=0
+[factconsolidation_sh_6k] agent=ory-22353a27 questions=40
+  -> 37/40 correct, errored=0
+[factconsolidation_sh_32k] agent=ory-82ec74a5 questions=40
+  -> 35/40 correct, errored=0
+[factconsolidation_sh_64k] agent=ory-089599da questions=40
+  -> 31/40 correct, errored=0
+[factconsolidation_sh_262k] agent=ory-9a5951c2 questions=40
+  -> 31/40 correct, errored=0
+
+  factconsolidation_mh_262k    10/40 = 0.250
+  factconsolidation_mh_32k     23/40 = 0.575
+  factconsolidation_mh_64k     23/40 = 0.575
+  factconsolidation_mh_6k      31/40 = 0.775
+  factconsolidation_sh_262k    31/40 = 0.775
+  factconsolidation_sh_32k     35/40 = 0.875
+  factconsolidation_sh_64k     31/40 = 0.775
+  factconsolidation_sh_6k      37/40 = 0.925
+
+CR n320 replay: 221/320 = 0.691  95% CI [0.640, 0.741]  errored=0  (2026 leader 0.836; published n64 was 0.766)
+ARM2_DONE rc=0 

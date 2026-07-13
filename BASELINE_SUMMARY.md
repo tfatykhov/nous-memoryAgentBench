@@ -184,3 +184,23 @@ connectivity-limited — restoring the hypothesized-missing edges made it worse
 lever is supersession-aware retrieval/reasoning; (3) keep SA gated off for
 dense-fact QA even post-F053 (replicates the backfill script's own prod
 warning at n=320). Evidence: `results_conflict_resolution_replay_n320_f053_spreadON.jsonl`.
+
+## #558 retest (2026-07-12, nous @ b3c97eb, design-reviewed pre-launch)
+
+Two arms, replay-only, review-fixed before launch (session-timeout via
+MAB_SESSION_TIMEOUT_BACKSTOP — the config-file NOUS_ knob is reserved+overwritten;
+ANALYZE after pg_restore; meta config_file fix). ARM1 (current nous, prod path,
+SA off, pristine memory): **0.716 vs published 0.725 — no regression**; published
+numbers describe current nous (compound #555-558 check, not single-PR). ARM2
+(new SA stack on repaired graph): **0.691 vs old SA stack 0.684 (+0.7pp, noise)**
+— #558's SUM->MAX does NOT measurably cure the graph-amplification penalty.
+5-arm story: SA-off best (0.72); every SA-on variant clusters 0.68-0.70.
+
+**Variance finding (changes how we read cell-level A/Bs):** ARM1's mh_6k "-8"
+investigated: answers were parametric fallbacks (real-world facts instead of
+stored counterfactuals), but **9/12 recovered on single re-ask** — pre-turn
+injection missed the counterfactual fact and the agent stochastically skips
+agentic recall. Per-instance deltas of +-3-8 are run variance; only ~n=320
+aggregates are interpretable. Actionable nous lever: supersession-aware
+pre-turn injection reliability (not graph scoring). Evidence:
+results_*_558regress.jsonl, results_*_f053_spreadON_558.jsonl, probe_6k_lost.log.
