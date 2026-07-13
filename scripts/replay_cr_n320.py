@@ -134,8 +134,7 @@ async def main() -> int:
             # Forced-recall simulation: deterministic verification policy, the
             # harness-side stand-in for a server-side pre-turn recall_deep call.
             prompt_t = PAPER_CR_PROMPT + (
-                "
-IMPORTANT: Before answering, you MUST use your memory recall "
+                "\nIMPORTANT: Before answering, you MUST use your memory recall "
                 "tool (recall_deep) to verify the relevant facts. Your memory "
                 "contains updated facts that supersede and override common "
                 "knowledge - trust what recall returns over what you believe. "
