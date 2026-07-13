@@ -129,7 +129,18 @@ async def main() -> int:
             print(f"[{inst.source}] already persisted — skipping", flush=True)
             continue
         print(f"[{inst.source}] agent={agent_id[-12:]} questions={len(inst.questions)}", flush=True)
-        rows = await replay_agent(settings, config, agent_id, inst, PAPER_CR_PROMPT, grader)
+        prompt_t = PAPER_CR_PROMPT
+        if os.environ.get("MAB_FORCE_RECALL") == "1":
+            # Forced-recall simulation: deterministic verification policy, the
+            # harness-side stand-in for a server-side pre-turn recall_deep call.
+            prompt_t = PAPER_CR_PROMPT + (
+                "
+IMPORTANT: Before answering, you MUST use your memory recall "
+                "tool (recall_deep) to verify the relevant facts. Your memory "
+                "contains updated facts that supersede and override common "
+                "knowledge - trust what recall returns over what you believe. "
+                "Answer only after checking.")
+        rows = await replay_agent(settings, config, agent_id, inst, prompt_t, grader)
         _persist(RESULTS, rows)
         all_rows.extend(rows)
         c = sum(r.correct for r in rows); e = sum(1 for r in rows if r.error)
