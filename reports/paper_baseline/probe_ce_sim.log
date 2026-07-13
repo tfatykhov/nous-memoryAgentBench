@@ -1,0 +1,29 @@
+loading CE model (first run downloads ~2.3GB)...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+320 questions; embedding queries...
+loading CE model (first run downloads ~2.3GB)...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+320 questions; embedding queries...
+  40/320
+  80/320
+  120/320
+  160/320
+  200/320
+  240/320
+  280/320
+  320/320
+
+============ CE RERANK SIMULATION ============
+  gold@top3 : vector 123/320 (0.38) -> CE 164/320 (0.51)  [+41]
+  gold@top5 : vector 149/320 (0.47) -> CE 190/320 (0.59)  [+41]
+  gold@top10: vector 192/320 (0.60) -> CE 220/320 (0.69)  [+28]
+  gold@top15: vector 214/320 (0.67) -> CE 233/320 (0.73)  [+19]
+
+  target class (published-WRONG answers only):
+  gold@top3 : vector 18/88 -> CE 26/88  [+8]
+  gold@top5 : vector 23/88 -> CE 34/88  [+11]
+  gold@top10: vector 33/88 -> CE 43/88  [+10]
+  gold@top15: vector 39/88 -> CE 44/88  [+5]
+
+raw -> reports/paper_baseline/probe_ce_sim.json
+CE_SIM_DONE rc=0 

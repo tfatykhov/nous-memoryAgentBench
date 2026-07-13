@@ -1,0 +1,33 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+320 questions
+  embedded 100/640
+  embedded 200/640
+  embedded 300/640
+  embedded 400/640
+  embedded 500/640
+  embedded 600/640
+  embedded 640/640
+  searched 40/320
+  searched 80/320
+  searched 120/320
+  searched 160/320
+  searched 200/320
+  searched 240/320
+  searched 280/320
+  searched 320/320
+
+================ RESULTS ================
+
+--- query = FULL prompt ---
+  facts: gold found at any rank: 3/320 | top5 0.01  top15 0.01  top30 0.01 | median rank (when found): 1
+  chunks: gold found at any rank: 241/320 | top5 0.42  top15 0.63  top30 0.75 | median rank (when found): 4
+
+--- query = BARE prompt ---
+  facts: gold found at any rank: 3/320 | top5 0.01  top15 0.01  top30 0.01 | median rank (when found): 1
+  chunks: gold found at any rank: 256/320 | top5 0.47  top15 0.67  top30 0.80 | median rank (when found): 4.0
+
+--- backstop calibration (FULL query, labels = published correctness) ---
+  CORRECT (n=232): top1 mean 0.215 median 0.238 | margin mean 0.0602 median 0.0363
+  WRONG   (n=88): top1 mean 0.196 median 0.218 | margin mean 0.0541 median 0.0346
+
+raw per-question data -> reports/paper_baseline/probe_query_dilution.json
