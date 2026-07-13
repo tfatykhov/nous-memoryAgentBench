@@ -222,3 +222,19 @@ query reformulation in pre-turn retrieval, supersession backfill for lineage
 density. Current prod state scores ~= published; flags safe to keep land-dark.
 Evidence: results_*_559on.jsonl, results_*_f053_flagsoff.jsonl,
 results_*_f053_559on.jsonl.
+
+## Read-path program CLOSED (2026-07-13): six levers, convergent null
+
+Probes: query dilution REFUTED (bare vs full query ~equal); facts store holds
+1% of CR golds (extraction coverage = root cause); gold lives in chunks
+(top-30 hit 78%, top-5 45%). Levers measured end-to-end (CR n=320, same
+memory): budget 13k->33k **0.716 null**; CE rerank ON **0.681 null/neg** —
+despite an offline-verified +41 gold@top-5 ceiling (probe_ce_sim) — because
+CE ranks by relevance and wrong-serial siblings are equally relevant; #559
+pin/lineage/backstop 0.675; anchors 0.713; spreading 0.68-0.70. Combined with
+23/88 failures already having gold in vector top-5: **gold-in-context is not
+the binding constraint — answer-time adjudication of near-duplicate variants
+is.** VERDICT: read path saturated; prod right to keep CE off at retrieval;
+the fix is WRITE-PATH adjudication (enumerative extraction + supersession
+resolution at store time -> context carries ONE current fact). Evidence:
+probe_query_dilution.*, probe_ce_sim.*, results_*_budget33k/_ceON.jsonl.
