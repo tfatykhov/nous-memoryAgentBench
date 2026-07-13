@@ -1,0 +1,14 @@
+re-asking 12 lost 6k questions once each
+  RECOVERED: 'From which capital city did the Surrey Senior Cup, a sports ' -> 'Russellville' (gold ['Russellville'])
+  RECOVERED: 'Who performed Past Masters?' -> 'Madonna' (gold ['Madonna'])
+  RECOVERED: 'What is the country of citizenship of Ernst Heinkel?' -> 'I found two entries: #192 "Ernst Heinkel is a citizen of Ger' (gold ['Tang Empire'])
+  RECOVERED: 'What is the name of the educational institution where the pa' -> 'Baldwin Wallace University' (gold ['Baldwin Wallace University'])
+  RECOVERED: 'Who holds the position of chairperson in the organization wh' -> 'Peter Diamandis' (gold ['Peter Diamandis'])
+  RECOVERED: 'What is Nobuhiro Watsuki famous for?' -> 'Answer: The Fairly OddParents' (gold ['The Fairly OddParents'])
+  still wrong: 'What is the capital city of the country where the sport asso' -> 'Rome' (gold ['Duluth'])
+  still wrong: 'On which continent was the place of birth of Thomas Arne loc' -> 'Asia' (gold ['Oceania'])
+  still wrong: 'What is the continent of origin of the chief executive offic' -> 'Asia' (gold ['North America'])
+  RECOVERED: 'Which continent does the country where the sport played by t' -> 'South America' (gold ['South America'])
+  RECOVERED: 'What city serves as the capital of the country where the per' -> 'Harrisville' (gold ['Harrisville'])
+  RECOVERED: 'Which country is the birthplace of the sport associated with' -> 'Italy' (gold ['Italy'])
+RECOVERY: 9/12 of ARM1's lost 6k questions answered correctly on re-ask
