@@ -1,0 +1,22 @@
+@echo off
+REM THE DECISIVE ARM: CR n=320 replay on the R1+R2 remediated memory
+REM (nous_mab_wp: 38k enumerative facts + ~2-3k supersession resolutions),
+REM prod-faithful config (write-path flags irrelevant at read time; resolved
+REM losers are active=false = excluded by default semantics).
+cd /d E:\Projects\nous-memoryAgentBench
+set MAB_NOUS_REPO=../nous
+set MAB_NOUS_PYTHON=E:\Projects\nous\.venv\Scripts\python.exe
+set MAB_DB_NAME=nous_mab_wp
+set MAB_CHUNK_CHARS=32000
+set MAB_MAX_INGEST_CHUNKS=80
+set MAB_TURN_DELAY_S=5
+set MAB_HEALTH_TIMEOUT_S=300
+set MAB_INGEST_SETTLE_TIMEOUT_S=1200
+set MAB_SLEEP_SETTLE_TIMEOUT_S=1200
+set MAB_SESSION_TIMEOUT_BACKSTOP=86400
+set HF_HUB_DISABLE_PROGRESS_BARS=1
+set PYTHONUNBUFFERED=1
+set PYTHONIOENCODING=utf-8
+set MAB_RESUME=1
+E:\Projects\nous-memoryAgentBench\.venv\Scripts\python.exe scripts\replay_cr_n320.py 40 _writepath configs/prod_memory.env >> reports\paper_baseline\cr_writepath.log 2>&1
+echo WRITEPATH_DONE rc=%ERRORLEVEL% >> reports\paper_baseline\cr_writepath.log

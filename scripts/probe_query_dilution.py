@@ -29,7 +29,7 @@ from mab.datasets import Competency, load_competency
 from mab.paper_prompts import PAPER_CR_PROMPT
 from mab.runner import frame_prompt
 
-DB = dict(host="127.0.0.1", port=5433, user="nous", password="nous_eval", dbname="nous_mab_baseline")
+DB = dict(host="127.0.0.1", port=5433, user="nous", password="nous_eval", dbname="nous_mab_wp")
 EMB_MODEL, DIMS = "text-embedding-3-large", 1536
 
 

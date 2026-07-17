@@ -1,0 +1,14 @@
+### mab-eval-prod_memory-82ec74a5
+2026-07-16 21:01:43,759 INFO nous.heart.admission: Admission bypass (derived) source=enumerative_extractor content=Kinsey Millhone was created by Sue Grafton.
+Backfilled 2499 enumerative facts across 1 episodes.
+          AND updated_at >= $2
+    ]
+[parameters: ('mab-eval-prod_memory-82ec74a5', '2026-07-17T01:01:45.818635+00:00')]
+(Background on this error at: https://sqlalche.me/e/20/dbapi)
+### mab-eval-prod_memory-3ac49da7
+2026-07-16 21:48:06,563 INFO httpx: HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+Backfilled 2493 enumerative facts across 1 episodes.
+          AND updated_at >= $2
+    ]
+[parameters: ('mab-eval-prod_memory-3ac49da7', '2026-07-17T01:48:08.574796+00:00')]
+(Background on this error at: https://sqlalche.me/e/20/dbapi)
