@@ -270,3 +270,18 @@ predicted median 0.78/0.75 — actual 0.675; the dilution tail (5-10%) was the
 outcome. Caveat: per-instance mh/sh attribution label-confounded across runs;
 aggregate-only causal reads. Evidence: results_*_writepath*.jsonl,
 backfill_*.log, probe_coverage_gate/post_r2.log.
+
+## Keyed-lookup ceiling simulation (2026-07-17, zero LLM) — negative, with diagnosis
+
+Naive exact-key retrieval over R1's subject_key: gold retrieval 0.20-0.23 total
+(sh 0.41 round-1; mh 0.00, +iterative 0.04) — WORSE than embedding findability
+(0.50@15) and far below the chunk channel (0.65). Diagnosis (miss sampling):
+key MATCHING works; the INDEX is deficient — (a) single-sided keying: facts
+keyed by grammatical subject, questions ask by the other entity ("author of
+Figaro" -> fact keyed 'thomas_kyd', the unknown); (b) inconsistent
+normalization (underscores vs spaces in the same store); (c) noisy keys.
+R3 REVISION for nous: bidirectional entity indexing + single normalization at
+write time, THEN a keyed leg — ceiling re-simulatable for free post-re-keying.
+Third consecutive proposed fix evaluated by zero-token simulation before build
+(distillation killed, naive keys killed, CE caught). Evidence:
+scripts/probe_keyed_lookup_sim.py output in this section.
