@@ -1,0 +1,33 @@
+320 questions
+  embedded 100/640
+  embedded 200/640
+  embedded 300/640
+  embedded 400/640
+  embedded 500/640
+  embedded 600/640
+  embedded 640/640
+  searched 40/320
+  searched 80/320
+  searched 120/320
+  searched 160/320
+  searched 200/320
+  searched 240/320
+  searched 280/320
+  searched 320/320
+
+================ RESULTS ================
+
+--- query = FULL prompt ---
+  facts: gold found at any rank: 207/320 | top5 0.39  top15 0.50  top30 0.57 | median rank (when found): 3
+  chunks: gold found at any rank: 241/320 | top5 0.42  top15 0.63  top30 0.75 | median rank (when found): 4
+
+--- query = BARE prompt ---
+  facts: gold found at any rank: 192/320 | top5 0.38  top15 0.49  top30 0.54 | median rank (when found): 2.0
+  chunks: gold found at any rank: 256/320 | top5 0.47  top15 0.67  top30 0.80 | median rank (when found): 4.0
+
+--- backstop calibration (FULL query, labels = published correctness) ---
+  CORRECT (n=232): top1 mean 0.516 median 0.519 | margin mean 0.0774 median 0.0562
+  WRONG   (n=88): top1 mean 0.469 median 0.464 | margin mean 0.0438 median 0.0247
+
+raw per-question data -> reports/paper_baseline/probe_query_dilution.json
+PROBE_POST_R2_DONE rc=0 

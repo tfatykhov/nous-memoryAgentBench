@@ -250,3 +250,23 @@ stochastic flip one-sidedly); the true deterministic-recall effect is the net
 worth building for accuracy. **Eight arms measured; write-path adjudication
 (enumerative extraction + store-time supersession) is the sole remaining lever
 with headroom.** Evidence: results_*_forcedrecall.jsonl.
+
+## Write-path validation (2026-07-14..17, nous F084/#561) — audited negative
+
+R1 enumerative backfill: facts store 1% -> ~90% gold existence (46k facts;
+liveness bug found in the backfill and fixed upstream as #562; default caps
+truncate dense docs — clone remediation needs caps=0; 32k pair gap caught by
+independent audit, fixed, re-tested). R2 supersession: ~4.5k resolutions, 0
+budget stops, losers deactivated. Post-R2 probe: fact findability@top15
+UNCHANGED at 0.50 (crowding is cross-entity, not chain-mates). **DECISIVE ARM
+(audited, coverage-fixed): 0.675 vs 0.725 (-5.0pp; paired +28/-45).**
+Mechanism probed both ways: enumerated fact injected -> correct; facts
+displacing gold-bearing chunks (65% carrier) with a 50%-findable channel ->
+net harm. **Write path fixed EXISTENCE, not SELECTION** — embedding search
+cannot discriminate 46k near-identical facts. Completing piece: KEYED LOOKUP
+retrieval leg over subject_key/attribute_key (R1 created the keys; a free
+offline simulation of its ceiling is the queued next step). Forecast records:
+predicted median 0.78/0.75 — actual 0.675; the dilution tail (5-10%) was the
+outcome. Caveat: per-instance mh/sh attribution label-confounded across runs;
+aggregate-only causal reads. Evidence: results_*_writepath*.jsonl,
+backfill_*.log, probe_coverage_gate/post_r2.log.

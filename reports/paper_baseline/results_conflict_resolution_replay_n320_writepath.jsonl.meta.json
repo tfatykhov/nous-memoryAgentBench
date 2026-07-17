@@ -1,0 +1,26 @@
+{
+  "mode": "replay_no_reingest (same persisted memory as the published 49/64)",
+  "competency": "conflict_resolution",
+  "questions_per_instance": 40,
+  "config_file": "configs/prod_memory.env",
+  "tag": "_writepath",
+  "prompt": "PAPER_CR_PROMPT",
+  "grader": "paper_substring_exact_match",
+  "agent_map": {
+    "factconsolidation_mh_6k": "mab-eval-prod_memory-28b19787",
+    "factconsolidation_mh_32k": "mab-eval-prod_memory-3ac49da7",
+    "factconsolidation_mh_64k": "mab-eval-prod_memory-84e808c8",
+    "factconsolidation_mh_262k": "mab-eval-prod_memory-39580836",
+    "factconsolidation_sh_6k": "mab-eval-prod_memory-22353a27",
+    "factconsolidation_sh_32k": "mab-eval-prod_memory-82ec74a5",
+    "factconsolidation_sh_64k": "mab-eval-prod_memory-089599da",
+    "factconsolidation_sh_262k": "mab-eval-prod_memory-9a5951c2"
+  },
+  "harness_git_sha": "89346ad3a72c86e530902782985efa26d611ba24",
+  "nous_git_sha": "a3b741647e014e0231e81dc172e8ad579db25e34",
+  "dataset": {
+    "repo": "ai-hyz/MemoryAgentBench",
+    "file": "data/Conflict_Resolution-00000-of-00001.parquet",
+    "revision": "7ea066982b140a19337e17e60d45d4076e042faf"
+  }
+}
