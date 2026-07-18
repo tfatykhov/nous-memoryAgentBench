@@ -285,3 +285,26 @@ write time, THEN a keyed leg — ceiling re-simulatable for free post-re-keying.
 Third consecutive proposed fix evaluated by zero-token simulation before build
 (distillation killed, naive keys killed, CE caught). Evidence:
 scripts/probe_keyed_lookup_sim.py output in this section.
+
+## F085 (R3) GATE 1 — failed for upstream reasons; two nous bugs isolated (2026-07-17)
+
+nous #563 shipped R3 faithfully (bidirectional entity keys, canonical
+normalizer, land-dark bounded keyed leg). Migration 065 + R3 backfill on the
+WP clone: 75,611 entity-key rows, 0 warnings, batch-mode extraction (~40
+facts/call — the R1 cost lesson fixed). **GATE 1 (free sim): sh keyed gold
+0.48 vs the >=0.80 bar — FAILED, but not by the index.** Decomposition:
+1. **R2 conflict-classifier PARAMETRIC BIAS (21/160 sh golds deactivated):**
+   restoring inactive facts lifts sh 0.48->0.61. R2 kept "author of Figaro =
+   Beaumarchais" (world-true) and superseded "= Thomas Kyd" (the stated
+   update/gold) — the classifier adjudicates by plausibility, reproducing the
+   exact failure mode the benchmark tests. FIX: UPDATE conflicts resolve by
+   ordinal/recency ONLY; any classifier involvement must ask "which was
+   stated later", never "which is true".
+2. **True answer-fact existence ~0.61 sh, not ~90% (measurement correction):**
+   earlier existence figures counted INCIDENTAL gold-string mentions. ~39% of
+   sh answer statements are absent from the fact store despite being verbatim
+   in transcripts — prime suspect: R1 cosine dedup dropping update-variants
+   (value-entity-only diffs embed near-identically). Needs nous dedup audit.
+The keyed index retrieves what exists+active faithfully. Pipeline: fix
+classifier bias -> dedup audit -> re-backfill -> free sim -> gate. mh keyed
+ceiling remains ~0 (composition, separate problem). No replay spend.
