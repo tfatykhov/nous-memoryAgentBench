@@ -53,12 +53,13 @@ document QA $+$2.0) within backbone-swing range.
 We describe the testing technique, a statistical-validation pass that materially
 corrected one competency's initial estimate, and the threats to validity that
 qualify a direct leaderboard comparison.
-A post-baseline causal improvement program (twelve intervention arms on the
+A post-baseline causal improvement program (fourteen intervention arms on the
 same persisted memory) then isolated and fixed three write-path store defects
-upstream in \nous{}; the resulting configuration scores
-\textbf{CR 0.759} (single-hop 0.900, multi-hop 0.619) --- above all twelve
-prior arms (0.675--0.738) --- with the gain mechanism verified by zero-cost
-store simulations at each step.
+upstream in \nous{} and added a bounded two-round exact-key retrieval leg;
+the resulting configuration scores \textbf{CR 0.812} (single-hop 0.938,
+multi-hop 0.688) --- a question-level-significant gain over the baseline
+(paired sign test, $p{=}0.0008$) --- with each step gated by zero-cost store
+simulations before any paid evaluation.
 \end{abstract}
 
 \section{Introduction}
@@ -474,7 +475,7 @@ difficulty (the benchmark's own ablation shows o4-mini falling
 80\%$\to$14\% on FC-MH as context grows) requires per-failure triage of the
 retrieved context; we report the curve as a finding, not a diagnosis.
 
-\subsection{Post-baseline: a causal improvement program closes at 0.759}
+\subsection{Post-baseline: a causal improvement program closes at 0.812}
 \label{sec:postbaseline}
 
 After the baseline froze, we ran a twelve-arm intervention program on the CR
@@ -517,8 +518,34 @@ recall is already iterative, and repairing the store improves every
 retrieval round it performs, not only the new keyed leg --- consistent with
 an offline composition simulation in which feeding round-one fact entities
 back as round-two keys lifts multi-hop gold coverage from 0.02 to 0.49 on
-the repaired store (versus approximately nothing pre-repair). The
-multi-hop $\times$ scale cell remains the frontier (0.425 at 262k).
+the repaired store (versus approximately nothing pre-repair).
+
+That simulation became the next shipped feature. \nous{} implemented the
+iterative round as a bounded, deterministic second keyed fetch (keys derived
+from round-one hits' own entity index rows, fan-out capped, candidates
+ranked by attribute-word overlap with the query, top-$K_2{=}8$ merged in a
+score band below round one), with the ranking function carrying an explicit
+sim-parity contract: any change to it requires re-simulation before paid
+evaluation. The acceptance gate ran against the implementation's own
+functions (not a re-simulation of the spec): multi-hop keyed-composition
+coverage 0.42 at $K_2{=}8$ against a pre-registered bar of 0.35. The
+decisive arm --- identical to the 0.759 configuration except
+\texttt{rounds}${=}2$ --- scored \textbf{0.812} (260/320; single-hop 0.938,
+multi-hop 0.688; CI [0.770, 0.855]; 0 errored). This is the program's first
+\emph{question-level-significant} improvement: paired against the published
+baseline, $+$47/$-$19 (sign test $p{=}0.0008$); paired against the
+rounds${=}1$ arm, $+$39/$-$22 ($p{=}0.040$); and the CI lower bound clears
+the baseline, the twelve-arm noise band, and the rounds${=}1$ point
+estimate. Multi-hop at 6k reached 0.900, the highest multi-hop cell
+recorded in this program. Across the program, CR moved
+0.725$\,\to\,$0.759$\,\to\,$0.812 ($+$8.7pp), each step mechanically
+explained and simulation-gated before spend. Two calibration notes carry
+forward: our pre-registered forecasts under-shot both decisive arms in the
+same direction --- single-hop gained even when the simulations attributed it
+nothing --- because static coverage simulations lower-bound live effects
+when the agent's own recall loop iterates over the improved substrate. The
+multi-hop $\times$ scale cell remains the frontier (0.475 at 262k, the
+least-improved cell, exactly as its 0.23 gate coverage predicted).
 
 \section{Threats to Validity}
 \label{sec:threats}
@@ -615,10 +642,11 @@ retrieval systems share, and the clear TTL gap identifies where \nous{}
 should improve next; both justify a full-benchmark evaluation. The
 post-baseline program (Section~\ref{sec:postbaseline}) closes the loop the
 baseline opened: the same replay infrastructure that priced the baseline
-localized three write-path store defects, drove their upstream fixes, and
-verified the repaired configuration at \textbf{CR 0.759} --- evidence that
-the benchmark is functioning here as an engineering instrument, not a
-leaderboard entry. The harness,
+localized three write-path store defects, drove their upstream fixes plus a
+bounded iterative keyed-retrieval leg, and verified the final configuration
+at \textbf{CR 0.812} (single-hop 0.938, multi-hop 0.688; $p{=}0.0008$ vs.\
+the baseline) --- evidence that the benchmark is functioning here as an
+engineering instrument, not a leaderboard entry. The harness,
 vendored graders, pinned configuration, and per-question result records are
 available in the project repository; \texttt{BASELINE\_SUMMARY.md} reconciles
 every number to its evidence file and comparability tier.
