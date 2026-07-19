@@ -356,3 +356,41 @@ keys are backfilled; R3 v2 = one bounded iterative keyed round (0.49 mh sim
 ceiling); keep F084 injection flags land-dark (displacement lesson stands).
 Note: AR regression gate is inert on this eval (no entity keys on AR agents ->
 leg no-ops); prod enablement still needs nous-side regression per R3 spec.
+
+## R3 v2 (rounds=2) decisive arm — 0.812, first question-level-significant gain (2026-07-19)
+
+nous #566 shipped R3 v2 spec-faithfully (flags/defaults exact; ranking policy
+carries a documented sim-parity contract; K2 selection at assembly with
+cross-leg dedup; surfaced telemetry). #565 = our histogram fix upstreamed.
+Acceptance gate 1 run against the IMPLEMENTATION's own functions (in-process,
+zero LLM): mh keyed-composition coverage **0.42 @ K2=8** vs 0.35 bar — PASSED
+(6k .57 / 32k .38 / 64k .53 / 262k .23; exact entity-row derivation beats the
+design sim's content scanning). Gate 2 (band ordering/displacement) holds by
+construction + #566's tests.
+
+**DECISIVE ARM (CR n=320, sole delta vs the 0.759 arm = NOUS_KEYED_FACT_LEG_
+ROUNDS=2; configs/prod_memory_keyedleg_r2.env):**
+
+    0.812 (260/320), CI [0.770, 0.855], 0 errored
+    sh 0.938 (150/160) | mh 0.688 (110/160)
+    cells: sh .925/.925/.950/.950 | mh .900/.725/.650/.475 (6k/32k/64k/262k)
+    paired vs rounds=1 (0.759): +39/-22 net +17, sign p=0.040
+    paired vs baseline (0.725): +47/-19 net +28, sign p=0.00076
+
+FIRST QUESTION-LEVEL-SIGNIFICANT improvement of the program (all prior claims
+rested on arm-distribution reads). CI lower bound (0.770) clears the published
+baseline, the 12-arm noise band, AND the rounds=1 point estimate. mh_6k 0.900
+is the highest multi-hop cell ever recorded here; mh_262k improved least
+(.425->.475) exactly as the 0.23 gate coverage predicted — scale x composition
+remains the residual frontier. FORECAST SCORECARD (pre-registered 0.78+-0.02,
+P(>=0.78)=40%): actual 0.812 ABOVE the band — underconfident, and the same
+direction of miss as rounds=1: sh ALSO gained (+6 net, 0.900->0.938) though
+the sim said round-2 adds ~nothing to sh retrieval. Twice-confirmed lesson:
+retrieval-substrate improvements compound through the agent's whole iterative
+loop; static coverage sims lower-bound the live effect.
+
+Program position: CR 0.725 -> 0.812 (+8.7pp) across the write-path program,
+now within 2.4pp of the 2026 leader's OVERALL benchmark average (0.836 —
+different metric, their strongest cells included); on CR itself the field
+best is 0.295 published / leader FC 0.580 (sh 0.81/mh 0.35): nous mh 0.688
+nearly doubles the leader's conceded-weakness cell.
