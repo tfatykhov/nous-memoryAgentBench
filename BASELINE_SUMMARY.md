@@ -394,3 +394,24 @@ now within 2.4pp of the 2026 leader's OVERALL benchmark average (0.836 —
 different metric, their strongest cells included); on CR itself the field
 best is 0.295 published / leader FC 0.580 (sh 0.81/mh 0.35): nous mh 0.688
 nearly doubles the leader's conceded-weakness cell.
+
+## ICL exemplar-mode program opens: sim 0.82 vs corrected live 0.555 (2026-07-19)
+
+Free-gate program for the sole decidable 2026-field loss (ICL). Independent
+review (fresh agent) audited the first-pass sim and CORRECTED two claims,
+both now on the record: (1) live ICL baseline 0.571 was corrupted by 40
+duplicated rows (n=8 smoke concatenated with n=200 run) -> deduped 0.555;
+(2) lexical gold-in-top25 0.92 was an ORACLE metric (presence != identifiability;
+lexical gold-plurality only 0.64) -> the claim as stated was refuted. Response
+to review: measured the IMPLEMENTABLE rules. Lexical 1-NN 0.67 (paired vs live
++55/-32 p=0.018) = floor. EMBEDDING kNN at exemplar granularity
+(text-embedding-3-large @1536): **1-NN 0.76, maj@5 0.82, strict-plurality@25
+0.81, gold-in25 0.99; paired vs live +70/-17, p=8e-9** — a deterministic
+zero-LLM rule at the 2026 leader's level (0.84). Root cause of the live 26pp
+gap: retrieval GRANULARITY (chunks bury ~40 exemplars each; chunk search finds
+a similar region, not the k nearest labeled examples). Storage validated
+lossless (0.2-2%); leakage 7-8/200 (~4pp, reported). Requirements delivered:
+docs/nous-icl-exemplar-mode-requirements.md (exemplar-granularity index +
+land-dark bounded injection mode; gate 1 pre-green at bar 0.75; replay
+prediction 0.75-0.85). Evidence: scripts/probe_icl_exemplar_knn.py,
+scripts/probe_icl_exemplar_emb.py.
