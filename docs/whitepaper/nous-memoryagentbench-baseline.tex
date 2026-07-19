@@ -53,6 +53,12 @@ document QA $+$2.0) within backbone-swing range.
 We describe the testing technique, a statistical-validation pass that materially
 corrected one competency's initial estimate, and the threats to validity that
 qualify a direct leaderboard comparison.
+A post-baseline causal improvement program (twelve intervention arms on the
+same persisted memory) then isolated and fixed three write-path store defects
+upstream in \nous{}; the resulting configuration scores
+\textbf{CR 0.759} (single-hop 0.900, multi-hop 0.619) --- above all twelve
+prior arms (0.675--0.738) --- with the gain mechanism verified by zero-cost
+store simulations at each step.
 \end{abstract}
 
 \section{Introduction}
@@ -468,6 +474,52 @@ difficulty (the benchmark's own ablation shows o4-mini falling
 80\%$\to$14\% on FC-MH as context grows) requires per-failure triage of the
 retrieved context; we report the curve as a finding, not a diagnosis.
 
+\subsection{Post-baseline: a causal improvement program closes at 0.759}
+\label{sec:postbaseline}
+
+After the baseline froze, we ran a twelve-arm intervention program on the CR
+competency using the replay-without-reingest technique (Section~4): every arm
+re-answers the same 320 questions against the same persisted memory, so arms
+are directly comparable and cost no re-ingestion. Eight read-path and
+behavior arms (retrieval budget, fact pinning, supersession-lineage
+formatting, recall backstop, graph anchors, spreading activation $\times$3,
+cross-encoder reranking, forced deterministic recall) all measured
+null-to-negative, clustering in 0.675--0.738. The program then moved to the
+write path, where offline probes located three store-level defects in
+sequence: extraction summarized instead of enumerating (the fact store held
+answerable golds for 1\% of questions); cosine deduplication silently
+dropped stated updates whose embedding matched the fact they were meant to
+supersede ($\sim$39\% of single-hop answer statements never became facts);
+and the supersession classifier adjudicated conflicts by world knowledge, so
+a stated update that contradicts the model's prior lost to it (21/160
+single-hop golds deactivated) --- the precise failure mode a
+conflict-resolution memory exists to prevent. All three were fixed upstream
+in \nous{} (enumerative extraction; same-slot routing past dedup;
+statement-order winner selection with the classifier demoted to advisory
+relation-typing), each fix gated by zero-cost store simulations before any
+paid evaluation: post-repair, exact entity-key retrieval of the gold fact
+reached 0.85 on single-hop (bar 0.80; pre-fix 0.48) with median candidate
+sets of 1.5 facts.
+
+The decisive arm --- the baseline configuration plus a single flag enabling
+a bounded exact entity-key retrieval leg ($K{=}8$, merged below the
+direct-hit head) over the repaired store --- scored \textbf{0.759}
+(243/320; single-hop 0.900, multi-hop 0.619), against 0.725 for the
+published baseline. Two qualifications keep this honest: the question-level
+paired sign test is not individually significant ($+$36/$-$25, $p{=}0.20$),
+and the claim therefore rests on the arm-distribution comparison ---
+\textbf{0.759 exceeds all twelve prior arms} (range 0.675--0.738) --- plus
+the mechanically verified causal chain (store repaired $\to$ retrieval gate
+passed $\to$ arm improved). Notably, the gain was multi-hop-driven ($+$9 net
+vs.\ $+$2 single-hop), contradicting our pre-registered single-hop-driven
+forecast: the best available explanation is that the agent's answer-time
+recall is already iterative, and repairing the store improves every
+retrieval round it performs, not only the new keyed leg --- consistent with
+an offline composition simulation in which feeding round-one fact entities
+back as round-two keys lifts multi-hop gold coverage from 0.02 to 0.49 on
+the repaired store (versus approximately nothing pre-repair). The
+multi-hop $\times$ scale cell remains the frontier (0.425 at 262k).
+
 \section{Threats to Validity}
 \label{sec:threats}
 
@@ -560,7 +612,13 @@ None of this is a state-of-the-art or official-benchmark claim
 conflict-resolution result still suggests that an explicit
 extract-link-consolidate memory architecture addresses a failure mode most
 retrieval systems share, and the clear TTL gap identifies where \nous{}
-should improve next; both justify a full-benchmark evaluation. The harness,
+should improve next; both justify a full-benchmark evaluation. The
+post-baseline program (Section~\ref{sec:postbaseline}) closes the loop the
+baseline opened: the same replay infrastructure that priced the baseline
+localized three write-path store defects, drove their upstream fixes, and
+verified the repaired configuration at \textbf{CR 0.759} --- evidence that
+the benchmark is functioning here as an engineering instrument, not a
+leaderboard entry. The harness,
 vendored graders, pinned configuration, and per-question result records are
 available in the project repository; \texttt{BASELINE\_SUMMARY.md} reconciles
 every number to its evidence file and comparability tier.
