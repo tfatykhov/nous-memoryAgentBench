@@ -308,3 +308,51 @@ facts/call — the R1 cost lesson fixed). **GATE 1 (free sim): sh keyed gold
 The keyed index retrieves what exists+active faithfully. Pipeline: fix
 classifier bias -> dedup audit -> re-backfill -> free sim -> gate. mh keyed
 ceiling remains ~0 (composition, separate problem). No replay spend.
+
+## #564 repair + keyed-leg decisive arm — 0.759, first arm above the noise band (2026-07-19)
+
+nous 7cbc10a (#564) implemented the Gate-1 fix spec exactly: D1 CONTRADICTION
+resolves by statement order (classifier advisory-only; same-episode ordinal ->
+learned_at -> KEEP-BOTH), D2 same-slot value-variants route past dedup into
+conflict resolution (flag default ON). Repair on nous_mab_wp (order corrected:
+rollback FIRST — 4,435 wrongly-superseded facts reactivated via docstring SQL,
+watermark 2026-07-16T03:21:11Z — then per-agent R1 re-run caps=0, R2 re-run,
+R3 all; scripts/run_repair_564_detached.cmd; one nous bug found+patched
+mid-flight: #564's chain-depth histogram passed the watermark as str to
+asyncpg — report-only, after commit; upstream-worthy).
+
+**Free gates after repair (scripts/probe_keyed_entity_sim.py):**
+- sh keyed gold retrieval **0.85** (136/160) vs 0.48 pre-fix — GATE PASSED
+  (bar 0.80); answer-fact existence 0.61 -> ~0.97–1.00; candidates median
+  1.5, p90 6 (inside the K=8 allotment — displacement-safe by construction).
+- mh single-round keyed 0.02 (expected; composition). **Iterative round-2 sim
+  on the repaired store: mh 0.02 -> 0.49** (pre-fix: round-2 added ~nothing)
+  — first mechanical evidence the mh plateau is addressable (R3 v2).
+
+**DECISIVE ARM (CR n=320, same memory/questions, minimal delta = baseline
+config + NOUS_KEYED_FACT_LEG_ENABLED=true, flag verified live in-process
+pre-launch; configs/prod_memory_keyedleg.env):**
+
+    0.759 (243/320), CI [0.713, 0.806], 0 errored
+    sh 0.900 (144/160, was 0.887) | mh 0.619 (99/160, was 0.562)
+    cells: sh .850/.900/.925/.925 | mh .725/.625/.700/.425 (6k/32k/64k/262k)
+    paired vs 0.725 baseline: +36/-25 (net +11), sign test p=0.20
+
+Reads, honestly stated: 0.759 exceeds every one of the 12 prior arms
+(0.675–0.738) — the first configuration above the historical arm
+distribution, with a mechanically grounded cause. Question-level sign test is
+not individually significant (p=0.20); the claim rests on the arm-distribution
+comparison + the causal chain (store repaired -> gate passed -> arm improved).
+FORECAST SCORECARD (pre-registered ~0.74, P(>0.725)=70%): direction and
+magnitude right (0.759), composition WRONG — predicted sh-driven (+5-7 sh,
+mh flat); actual mh-driven (mh +9 net, sh +2 net). Best explanation: the
+agent's own agentic recall is already iterative, and the repaired store makes
+its round-2 lookups land on correct active facts (consistent with the 0.49
+iterative sim); sh was nearer ceiling than the rescue-candidate count implied.
+mh 262k still degrades (.425) — scale x composition remains the frontier.
+
+Recommendations shipped to nous: enable keyed leg (bounded K=8) once entity
+keys are backfilled; R3 v2 = one bounded iterative keyed round (0.49 mh sim
+ceiling); keep F084 injection flags land-dark (displacement lesson stands).
+Note: AR regression gate is inert on this eval (no entity keys on AR agents ->
+leg no-ops); prod enablement still needs nous-side regression per R3 spec.
