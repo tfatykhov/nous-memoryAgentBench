@@ -12,7 +12,7 @@
 \usepackage{multirow}
 \usepackage{tabularx}
 
-\title{\textbf{nous on MemoryAgentBench:\\A Paper-Faithful Evaluation of a Cognitive Memory Agent}}
+\title{\textbf{Evaluating and Improving a Production Cognitive Memory Agent\\on MemoryAgentBench}}
 \author{Timur Fatykhov\\\small\textit{with Claude (Anthropic) as evaluation engineer}}
 \date{July 4, 2026}
 
@@ -146,12 +146,12 @@ measured retrieval-negative in this program; it remains in use only for
 sleep-time edge auditing); (1.5)~the \emph{episode-chunk leg} --- hybrid
 vector+FTS search over verbatim transcript chunks, the channel our probes
 identified as carrying $\sim$65\% of answerable content; (1.6)~the
-\emph{keyed fact leg} (F085) --- exact entity-key lookup against a
+\emph{keyed fact leg} --- exact entity-key lookup against a
 bidirectional key index, merged in a bounded score band ($K{=}8$);
-(R3v2)~an optional \emph{second keyed round} that feeds round-one hits'
+then an optional \emph{second keyed round} that feeds round-one hits'
 entity keys back as new lookup keys under fan-out guards (32 keys / 256
 candidates) with a deterministic attribute-overlap ranking ($K_2{=}8$);
-(1.7)~the \emph{exemplar leg} (F086) --- cosine $k$-NN over
+(1.7)~the \emph{exemplar leg} --- cosine $k$-NN over
 individually-embedded labeled examples, trigger-gated to
 classification-shaped queries; (2)~cross-type graph expansion from heart
 seeds; (3)~decision search; (4)~graph expansion via one-hop neighbors or,
@@ -172,16 +172,16 @@ persists the transcript, and triggers an asynchronous episode summarizer
 that also chunks and embeds the transcript verbatim (600-character chunks,
 80 overlap). Fact extraction then routes \emph{modally} by content shape:
 example-shaped streams (\texttt{utterance$\to$label} density $\geq$0.8) are
-parsed --- not LLM-extracted --- into individually-embedded exemplar facts
-(F086); enumerable dense-document episodes (statement-line density
-$\geq$0.6) route to the enumerative extractor (F084), which emits one fact
+parsed --- not LLM-extracted --- into individually-embedded exemplar facts;
+enumerable dense-document episodes (statement-line density
+$\geq$0.6) route to the enumerative extractor, which emits one fact
 per statement with subject/attribute keys and per-statement source ordinals;
 everything else takes the legacy summarizer/extractor path. Every fact
 passes an admission controller scoring utility, grounding, novelty, recency,
 and a category prior (threshold 0.55; corrective sources such as
 user-stated facts and the extraction legs bypass scoring). Near-duplicates
 are detected at cosine $\geq$0.95 --- with the critical exception, added by
-this program's Gate-1 fix, that a same-\texttt{(subject\_key,
+this program's store-semantics fixes, that a same-\texttt{(subject\_key,
 attribute\_key)} pair with a \emph{different value} routes to conflict
 resolution instead of being confirmed away as a duplicate. Conflict
 resolution is resolved by \emph{statement order} (same-episode source
@@ -288,7 +288,7 @@ only.}
 
 \section{Testing Technique}
 
-\subsection{Paper-faithful grading}
+\subsection{Benchmark-faithful grading}
 Each sub-dataset is graded exactly as in the benchmark's \texttt{post\_process}
 dispatch:
 
@@ -397,7 +397,7 @@ Long-Range Understanding  & \textbf{0.824} & 68  & [0.733, 0.914] & 0.622 --- \t
 Test-Time Learning (ICL subset) & \textbf{0.555} & 200 & [0.486, 0.624] & 0.539 --- at ceiling \\
 \bottomrule
 \end{tabular}
-\caption{\nous{} on \mab{} (paper-faithful grading, production configuration,
+\caption{\nous{} on \mab{} (benchmark-faithful grading, production configuration,
 0 execution errors on all final runs). LRU is detective-QA; the auxiliary
 InfBench-Sum summarization judge scored f1 = 0.592 on a single 1.75M-char book
 (unfirmed, $n{=}1$). ``Best published avg.'' is the strongest per-competency
@@ -712,7 +712,7 @@ forecasting method.
         (uniformly 4096 for the commercial memory agents, for cost); our
         harness streams 32{,}000-character turns, and \nous{} re-chunks
         internally for retrieval, so transport granularity is not the
-        retrieval granularity. The baseline is therefore paper-faithful in
+        retrieval granularity. The baseline is therefore benchmark-faithful in
         prompts, graders, judges, and question sets, but \emph{not} an exact
         reproduction of the paper's ingestion transport. No answer-bearing
         text was lost to this difference: ingest capacity was
