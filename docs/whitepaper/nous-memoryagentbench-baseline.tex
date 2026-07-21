@@ -97,33 +97,138 @@ Two principles governed the effort:
 \section{System Under Test}
 
 \subsection{The \nous{} cognitive cycle}
-Each benchmark instance exercises the complete production write path:
+This subsection describes the system as it actually runs --- module and
+function names refer to the \nous{} codebase at the evaluated revision, and
+every mechanism named here was verified against source by an independent
+code-mapping pass. Each benchmark instance exercises the complete production
+path:
 
 \begin{enumerate}
   \item \textbf{Ingestion.} The instance's context is split into chunks of at
         most 32{,}000 characters (conversational corpora are packed
         turn-by-turn into chunks of the same size, preserving every turn) and
-        streamed to the agent as consecutive chat turns in one session.
+        streamed to the agent as consecutive chat turns in one session
+        (\texttt{POST /chat}).
   \item \textbf{Session close.} The session is closed, triggering the
-        durable-write chain: an episode summarizer, an LLM fact extractor
-        that emits typed facts, and full-fidelity chunk embedding.
-  \item \textbf{Sleep consolidation.} One or more sleep cycles run offline
-        consolidation: fact deduplication, cross-episode linking,
-        co-occurrence edge formation, and graph densification.
+        durable-write chain described below.
+  \item \textbf{Sleep consolidation.} One or more sleep cycles run the
+        offline consolidation phases described below.
   \item \textbf{Answering.} Every question is asked in a \emph{fresh} session.
-        The agent answers from its memory (retrieval-augmented context
-        injection plus agentic recall tools); the question is framed with the
-        benchmark's own per-dataset prompt template.
+        The agent answers from its memory (pre-turn retrieval-augmented
+        context injection plus agentic recall tools); the question is framed
+        with the benchmark's own per-dataset prompt template.
 \end{enumerate}
 
+\paragraph{Turn orchestration and pre-turn injection.}
+A turn is driven by a cognitive layer phased as
+SENSE\,$\to$\,FRAME\,$\to$\,RECALL\,$\to$\,DELIBERATE before the model is
+called, and ACT\,$\to$\,MONITOR\,$\to$\,LEARN after
+(\texttt{cognitive/layer.py}). The RECALL phase assembles the system prompt
+from prioritized sections (\texttt{cognitive/context.py::ContextEngine.build}):
+identity, an anti-hallucination notice, the user profile (tier-1 fact
+categories), active censors, the selected frame, session working memory,
+related decisions, relevant facts, recent conversations, and matching past
+episodes. The per-type fact pipeline applies, in order: recency resolution,
+staleness penalty, frame boost, subject-diversity enforcement, deduplication,
+usage boost, a relevance floor, and pinned-fact reinsertion. Section budgets
+are frame-dependent and environment-overridable; sections are grouped into
+static/semi-stable/dynamic tiers to exploit prompt caching.
+
+\paragraph{Retrieval.}
+Pre-turn injection uses per-type searches; the deeper pipeline
+(\texttt{api/retrieval\_pipeline.py::run\_recall\_pipeline}) serves the
+agentic recall tools. Its stages, in execution order, each behind its own
+flag: (1)~\emph{heart recall} over episodes/facts/procedures --- internally a
+reciprocal-rank-fusion hybrid of vector and keyword legs
+($w_v{=}0.7$, $k{=}60$), with optional cross-encoder re-ranking and MMR
+diversity both \emph{off} in the evaluated configuration (the CE was
+measured retrieval-negative in this program; it remains in use only for
+sleep-time edge auditing); (1.5)~the \emph{episode-chunk leg} --- hybrid
+vector+FTS search over verbatim transcript chunks, the channel our probes
+identified as carrying $\sim$65\% of answerable content; (1.6)~the
+\emph{keyed fact leg} (F085) --- exact entity-key lookup against a
+bidirectional key index, merged in a bounded score band ($K{=}8$);
+(R3v2)~an optional \emph{second keyed round} that feeds round-one hits'
+entity keys back as new lookup keys under fan-out guards (32 keys / 256
+candidates) with a deterministic attribute-overlap ranking ($K_2{=}8$);
+(1.7)~the \emph{exemplar leg} (F086) --- cosine $k$-NN over
+individually-embedded labeled examples, trigger-gated to
+classification-shaped queries; (2)~cross-type graph expansion from heart
+seeds; (3)~decision search; (4)~graph expansion via one-hop neighbors or,
+when a density gate opens, spreading activation (measured negative for
+dense-fact QA in this program and kept gated off); (5)~contradiction
+detection over \texttt{contradicts} edges among the results. Results merge
+into score bands (direct hits above keyed round-one above keyed round-two),
+deduplicate across legs, and exclude anything already injected into the
+current turn's system prompt --- so agentic recall deliberately surfaces the
+next-best alternatives beyond pre-turn injection. The answering agent can
+invoke \texttt{recall\_deep} (the full pipeline), \texttt{recall\_recent}
+(time-ordered episodes), \texttt{get\_procedure}, and a graph-hub tool
+mid-turn.
+
+\paragraph{Write path.}
+Session close ends the episode (trivial single-turn episodes are discarded),
+persists the transcript, and triggers an asynchronous episode summarizer
+that also chunks and embeds the transcript verbatim (600-character chunks,
+80 overlap). Fact extraction then routes \emph{modally} by content shape:
+example-shaped streams (\texttt{utterance$\to$label} density $\geq$0.8) are
+parsed --- not LLM-extracted --- into individually-embedded exemplar facts
+(F086); enumerable dense-document episodes (statement-line density
+$\geq$0.6) route to the enumerative extractor (F084), which emits one fact
+per statement with subject/attribute keys and per-statement source ordinals;
+everything else takes the legacy summarizer/extractor path. Every fact
+passes an admission controller scoring utility, grounding, novelty, recency,
+and a category prior (threshold 0.55; corrective sources such as
+user-stated facts and the extraction legs bypass scoring). Near-duplicates
+are detected at cosine $\geq$0.95 --- with the critical exception, added by
+this program's Gate-1 fix, that a same-\texttt{(subject\_key,
+attribute\_key)} pair with a \emph{different value} routes to conflict
+resolution instead of being confirmed away as a duplicate. Conflict
+resolution is resolved by \emph{statement order} (same-episode source
+ordinal, else \texttt{learned\_at}); the LLM conflict classifier is advisory
+relation-typing only, and pairs with no ordering signal are kept both and
+flagged with a \texttt{contradicts} edge. On insert, each fact's subject and
+value-side entities are written to a canonical-normalized entity-key index
+(at most 8 keys/fact) that serves the keyed retrieval legs.
+
+\paragraph{Sleep consolidation.}
+An idle-triggered background cycle runs phases ordered free-first/LLM-last:
+decision-outcome review, pruning, episode compression, cross-session
+reflection, embedding-based contradiction resolution, the key-conflict
+supersession sweep, stale-fact retirement, same-subject cluster
+consolidation, abandoned-episode recovery, graph densification (where
+sleep-time cross-encoder edge auditing applies), episode-edge relinking,
+dead-edge pruning, and procedure generalization. Background phases use a
+separate background model from the answering model.
+
+\paragraph{Storage.}
+Postgres with \texttt{pgvector}: \texttt{heart.facts} (content, category,
+confidence, provenance, \texttt{subject\_key}/\texttt{attribute\_key},
+\texttt{source\_ordinal}, \texttt{superseded\_by}/\texttt{active} lifecycle,
+1536-dim embedding, generated FTS column);
+\texttt{heart.fact\_entity\_keys} (the bidirectional key index, btree on
+\texttt{(agent\_id, entity\_key)}); \texttt{heart.episode\_chunks} (verbatim
+transcript chunks with HNSW vector and GIN FTS indexes);
+\texttt{heart.episodes}; and \texttt{brain.graph\_edges} (typed relations
+including \texttt{supersedes}/\texttt{contradicts}/\texttt{co\_occurred},
+with extraction-method provenance). Exemplar facts get a dedicated
+\emph{partial} HNSW index scoped to active exemplar rows so the $k$-NN walk
+never touches the general embedding index.
+
 \subsection{Configuration}
-\nous{} ran under its live production configuration (Claude Sonnet~5 as the
-reasoning model; hybrid chunk search; typed-edge extraction; cross-encoder
-re-ranking; date-aware retrieval; adaptive thinking) with exactly three
-eval-hygiene overrides, all disabling background self-improvement features
-irrelevant to memory measurement: the heartbeat timer, the scheduler, and
-rubric outcome detection. A 117-knob snapshot of the configuration is pinned
-in the harness repository for reproducibility.
+\nous{} ran under its live production configuration --- Claude Sonnet~5 as
+the reasoning model (\texttt{NOUS\_MODEL} overriding the code default),
+Sonnet-class background model for extraction and consolidation, a
+Haiku-class model for the advisory conflict classifier,
+\texttt{text-embedding-3-large} at 1536 dimensions for all embeddings,
+hybrid chunk search enabled, date-aware retrieval, adaptive thinking ---
+with exactly three eval-hygiene overrides, all disabling background
+self-improvement features irrelevant to memory measurement: the heartbeat
+timer, the scheduler, and rubric outcome detection. Retrieval-time
+cross-encoder re-ranking, MMR, and spreading activation were off (the first
+and third measured negative in this program; Section~\ref{sec:postbaseline}).
+A 117-knob snapshot of the configuration is pinned in the harness repository
+for reproducibility.
 
 Two run profiles were used. The \emph{full-fidelity} profile (unbounded
 episode summarization, three sleep cycles) is used for moderate contexts.
