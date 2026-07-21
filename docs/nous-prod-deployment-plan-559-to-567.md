@@ -85,10 +85,17 @@ cd /path/to/nous && export PYTHONPATH=$PWD
 
 ## Step 5 — Optional backfills (dry-run first; run only if counts warrant)
 
-- `backfill_enumerative_facts.py --agent-id nous-default --dry-run` — conversational
-  episodes rarely clear the density threshold; expect ~0 qualifying. Only relevant
-  if prod has ingested dense reference documents. If run live, keep the DEFAULT
-  caps (the uncapped mode is an offline-clone setting).
+- `backfill_enumerative_facts.py --agent-id nous-default --dry-run` — since prod
+  ingests large documents, expect a REAL count here (dense document episodes
+  qualify; conversational ones don't). Run live if the dry-run shows qualifying
+  episodes: it backfills enumerative facts for documents ingested BEFORE the flag
+  flip in step 6, so historical documents get the same fact coverage as future
+  ones. Keep the DEFAULT caps (the uncapped mode is an offline-clone setting);
+  watch the loud-truncation warnings and note which documents hit them. Cost:
+  LLM extraction per qualifying episode (batch mode; dry-run count × doc size
+  sets the budget). Run AFTER step 3 (supersession) and BEFORE step 4's extract
+  phase if possible, so new enumerative facts get entity keys in the same pass —
+  otherwise re-run `backfill_r3_entity_keys.py` incrementally afterwards.
 - `backfill_exemplar_facts.py --agent-id nous-default --dry-run` — only relevant if
   prod has stored `utterance\nlabel: N`-shaped training streams; expect 0 episodes
   classified otherwise. **Footguns (both hit us in the field):** the default
@@ -113,10 +120,28 @@ NOUS_SUPERSESSION_KEY_RESOLUTION_ENABLED=true
 # confirmed the arm (see §6):
 # NOUS_EXEMPLAR_MODE_ENABLED=true
 
-# Confirm these remain OFF / absent (validated negative or superseded):
+# For a DOCUMENT-INGESTING prod (nous ingests large documents / research
+# material, not only conversation): enable enumerative extraction — it fixes
+# the measured summarize-instead-of-enumerate defect (facts held 1% of
+# answerable document content). SAFE ONLY WITH THE KEYED LEG ON (above): facts
+# without keyed selection reproduced a measured -5.0pp displacement; facts
+# WITH keyed rounds=2 are the validated 0.812 configuration. The density
+# heuristic gates per-episode, so conversational episodes are unaffected.
+NOUS_EXTRACTION_ENUMERATIVE_ENABLED=true
+# Keep the DEFAULT caps + hourly limiter initially (caps=0 is a clone-
+# remediation setting; a 1M-char doc is many background-model calls at
+# ingest). Truncation warns loudly — raise caps deliberately if it fires.
+# With enumeration on, SUPERSESSION_KEY_RESOLUTION (above) matters more:
+# enumerative facts are what feed same-slot conflicts.
+
+# Confirm these remain OFF / absent (validated negative or superseded —
+# mechanism-based nulls, NOT workload-dependent):
 # spreading activation OFF; retrieval-time cross-encoder OFF;
-# F084 injection flags (pin/format/lineage/backstop) absent/dark;
-# NOUS_EXTRACTION_ENUMERATIVE_ENABLED absent/dark for conversational workloads.
+# F084 injection flags (pin/format/lineage/backstop) absent/dark — the keyed
+#   leg does their job (bounded precise injection) measurably better.
+#   Footnote: SUPERSESSION_LINEAGE_MODE was data-starved when measured (19
+#   chains); after step-3 backfill + write-time R2, prod will accumulate real
+#   chains — a legitimate future RE-TEST, not an enable.
 ```
 
 ## Step 7 — Post-deploy verification
