@@ -415,3 +415,37 @@ docs/nous-icl-exemplar-mode-requirements.md (exemplar-granularity index +
 land-dark bounded injection mode; gate 1 pre-green at bar 0.75; replay
 prediction 0.75-0.85). Evidence: scripts/probe_icl_exemplar_knn.py,
 scripts/probe_icl_exemplar_emb.py.
+
+## F086 exemplar-mode decisive arm — ICL 0.695 vs 0.555 (2026-07-21)
+
+nous #567 (F086) shipped spec-faithfully: parse-only exemplar extraction,
+land-dark bounded read leg (top_k 25, cosine floor 0.30, 64-word query gate),
+backfill with exact-id rollback manifest. Validation on clone **nous_mab_icl**
+(nous_mab_baseline pristine): TWO field bugs found — clone lacked migrations
+064-066 (backfill wrote 0 facts SILENTLY; scripts don't migrate; fixed by
+applying 064/065/066 directly) and exemplar_max_per_episode=5000 truncates
+banking77's 6,402 pairs (and 0 = truncate-to-NOTHING, not unlimited — inverted
+vs the R1 cap convention; used 20000). Backfill: 31,607 exemplar facts / 5
+agents / 0 skipped. GATE 1 vs the implementation's own fetch_exemplars_by_vector:
+**maj@5 0.80 (bar 0.75) — PASSED** (gold-in-25 0.99).
+
+**DECISIVE ARM (ICL n=200, answer-only replay driver scripts/replay_icl_n200.py,
+sole delta NOUS_EXEMPLAR_MODE_ENABLED=true; configs/prod_memory_exemplar.env):**
+
+    0.695 (139/200), CI [0.631, 0.759], 0 errored
+    banking77 .575 / clinic150 .725 / nlu .675 / trec_coarse .875 / trec_fine .625
+    paired vs corrected 0.555 baseline: +52/-24 (net 28), sign p=1.8e-3
+
+Largest single-competency gain of the program (+14pp; the sole 2026-field loss
+narrows from -28.5pp to -14.5pp vs leader 0.840) — but the FIRST arm to land
+BELOW its gate (0.80). CONVERSION DECOMPOSITION (per-question join of live
+answers vs injected maj@5): answer FOLLOWED injected majority 136/200 -> 0.83
+accuracy (= the gate); answer OVERRODE 64/200 -> 0.41, while the ignored
+majority was ~73% right. Following-always ~= 0.80. THE LEAK IS READER OVERRIDE,
+not retrieval. nous v1.1 lever: exemplar-block framing nudge (prefer the
+majority label) — opposite of the F083 episodic lesson, appropriately (labeled
+exemplars are evidence-dense). Harness-side confirmation available cheaply: a
+prompt-arm replay with a follow-the-examples instruction. FORECAST SCORECARD
+(0.75-0.85 predicted): MISS LOW for the first time — injection arms convert
+BELOW static sims (reader discretion), the mirror image of substrate arms
+converting ABOVE (loop compounding). Both lessons now on record.
