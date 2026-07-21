@@ -1,0 +1,21 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+agent mapping content-verified for all 5 sources
+[icl_banking77_5900shot_balance] agent=per-c90e89a7 questions=40
+  -> 23/40 correct, errored=0
+[icl_clinic150_7050shot_balance] agent=per-53378b33 questions=40
+  -> 29/40 correct, errored=0
+[icl_nlu_8296shot_balance] agent=per-4ed65584 questions=40
+  -> 27/40 correct, errored=0
+[icl_trec_coarse_6600shot_balance] agent=per-933d1c23 questions=40
+  -> 35/40 correct, errored=0
+[icl_trec_fine_6400shot_balance] agent=per-356d5486 questions=40
+  -> 25/40 correct, errored=0
+
+  icl_banking77_5900shot_balance     23/40 = 0.575
+  icl_clinic150_7050shot_balance     29/40 = 0.725
+  icl_nlu_8296shot_balance           27/40 = 0.675
+  icl_trec_coarse_6600shot_balance   35/40 = 0.875
+  icl_trec_fine_6400shot_balance     25/40 = 0.625
+
+ICL n200 replay: 139/200 = 0.695  95% CI [0.631, 0.759]  errored=0  (corrected live baseline 0.555; 2026 leader 0.840)
+ICL_EXEMPLAR_DONE rc=0 
