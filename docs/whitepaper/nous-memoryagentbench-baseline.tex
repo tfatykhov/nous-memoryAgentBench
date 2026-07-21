@@ -53,13 +53,14 @@ document QA $+$2.0) within backbone-swing range.
 We describe the testing technique, a statistical-validation pass that materially
 corrected one competency's initial estimate, and the threats to validity that
 qualify a direct leaderboard comparison.
-A post-baseline causal improvement program (fourteen intervention arms on the
+A post-baseline causal improvement program (fifteen intervention arms on the
 same persisted memory) then isolated and fixed three write-path store defects
-upstream in \nous{} and added a bounded two-round exact-key retrieval leg;
-the resulting configuration scores \textbf{CR 0.812} (single-hop 0.938,
-multi-hop 0.688) --- a question-level-significant gain over the baseline
-(paired sign test, $p{=}0.0008$) --- with each step gated by zero-cost store
-simulations before any paid evaluation.
+upstream in \nous{}, added a bounded two-round exact-key retrieval leg, and
+added an exemplar-granularity retrieval mode; the resulting configurations
+score \textbf{CR 0.812} (single-hop 0.938, multi-hop 0.688; $p{=}0.0008$ vs.\
+baseline) and \textbf{ICL 0.695} (vs.\ 0.555, $p{=}0.0018$, narrowing the
+program's sole decidable field loss from $-$28.5pp to $-$14.5pp) --- each
+step gated by zero-cost store simulations before any paid evaluation.
 \end{abstract}
 
 \section{Introduction}
@@ -547,6 +548,35 @@ when the agent's own recall loop iterates over the improved substrate. The
 multi-hop $\times$ scale cell remains the frontier (0.475 at 262k, the
 least-improved cell, exactly as its 0.23 gate coverage predicted).
 
+The program then turned to its sole decidable loss, in-context test-time
+learning. An independent methodology review first corrected our own
+accounting --- the live ICL baseline file had concatenated two runs,
+double-counting 40 questions; the true deduplicated baseline is
+\textbf{0.555}, not 0.571 --- and refuted a first-pass oracle-style ceiling
+claim (presence of the gold label in a gathered set is not identifiability).
+The corrected diagnosis: storage is lossless (0.2--2\% chunk-boundary loss)
+and the model is capable; the 26pp gap to the leader is \emph{retrieval
+granularity} --- stored chunks bury $\sim$40 labeled exemplars each, so
+chunk-level search returns a similar region rather than the $k$ nearest
+labeled examples. A zero-LLM simulation at exemplar granularity
+(individually-embedded \texttt{utterance$\to$label} pairs) showed a
+deterministic majority-vote-of-5 rule reaching \textbf{0.82} --- the 2026
+leader's level --- on \nous{}'s own stored memory (paired vs.\ live,
+$p{=}8{\times}10^{-9}$). \nous{} shipped the corresponding feature
+(parse-only exemplar extraction plus a bounded, land-dark retrieval leg);
+the implementation gate reproduced 0.80 against the shipped index; and the
+decisive n=200 replay scored \textbf{0.695} ($+$52/$-$24 paired vs.\ 0.555,
+$p{=}0.0018$) --- the largest single-competency gain of the program,
+narrowing the field loss from $-$28.5pp to $-$14.5pp, but the first arm to
+land \emph{below} its gate. The conversion leak is precisely attributable:
+where the agent's answer followed the injected exemplar majority (136/200)
+it scored 0.83, matching the gate; where it overrode (64/200) it scored
+0.41 while the ignored majority was right $\sim$73\% of the time. The
+residual is therefore answer-time reader discretion, not retrieval --- the
+mirror image of the substrate arms, which converted \emph{above} their
+simulations. Both calibration asymmetries are now part of the program's
+forecasting method.
+
 \section{Threats to Validity}
 \label{sec:threats}
 
@@ -642,11 +672,15 @@ retrieval systems share, and the clear TTL gap identifies where \nous{}
 should improve next; both justify a full-benchmark evaluation. The
 post-baseline program (Section~\ref{sec:postbaseline}) closes the loop the
 baseline opened: the same replay infrastructure that priced the baseline
-localized three write-path store defects, drove their upstream fixes plus a
-bounded iterative keyed-retrieval leg, and verified the final configuration
-at \textbf{CR 0.812} (single-hop 0.938, multi-hop 0.688; $p{=}0.0008$ vs.\
-the baseline) --- evidence that the benchmark is functioning here as an
-engineering instrument, not a leaderboard entry. The harness,
+localized three write-path store defects and a retrieval-granularity defect,
+drove their upstream fixes (a bounded iterative keyed-retrieval leg; an
+exemplar-granularity retrieval mode), and verified the final configurations
+at \textbf{CR 0.812} (single-hop 0.938, multi-hop 0.688; $p{=}0.0008$) and
+\textbf{ICL 0.695} ($p{=}0.0018$; the baseline's sole decidable field loss
+narrowed from $-$28.5pp to $-$14.5pp, with the remaining gap attributed to
+answer-time reader discretion, not retrieval) --- evidence that the
+benchmark is functioning here as an engineering instrument, not a
+leaderboard entry. The harness,
 vendored graders, pinned configuration, and per-question result records are
 available in the project repository; \texttt{BASELINE\_SUMMARY.md} reconciles
 every number to its evidence file and comparability tier.
