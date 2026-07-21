@@ -473,3 +473,19 @@ hops (each hop needs the bridge entity keyed on the bridge fact). CONVERGENT
 NOUS ACTION: the sh fix (value-side extractor recall) is also the mh_262k
 fix, multiplicatively; secondary levers (rank features, per-key candidate
 quotas) worth ~10/40 at most. Free re-sim after any extractor change.
+
+## Follow-the-examples prompt arm — NULL, override is not prompt-addressable (2026-07-21)
+
+Diagnostic arm: same ICL n=200 replay + an explicit answer-prompt instruction
+to prefer the injected exemplar majority. Result **0.655 vs 0.695 plain**
+(banking77 .575/.575 identical; others -1 to -4). DECOMPOSITION (per-question
+agreement with injected majorities, both arms): agree@maj5 0.68 -> 0.69,
+agree@maj25 0.67 -> 0.66 — **compliance did not move at all**; the delta is
+run variance. CONCLUSION: the reader-override leak (follow-cases 0.83 vs
+override-cases 0.41) is NOT fixable by prompt framing — echoes the
+forced-recall lesson (prompt-level behavior forcing is weak). The nous v1.1
+lever must be STRUCTURAL: the exemplar leg already fetches top-25 with
+similarities, so compute the top-5 majority label server-side and present it
+as an explicit suggested label in the injected block (or, flag-gated,
+short-circuit classification-shaped answers to the deterministic rule —
+measured ceiling 0.82). Standing ICL number remains 0.695 (exemplar arm).

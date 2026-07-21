@@ -1,0 +1,23 @@
+{
+  "mode": "replay_no_reingest (persisted ICL memory, F086 exemplar backfill applied)",
+  "competency": "test_time_learning(icl)",
+  "questions_per_instance": 40,
+  "config_file": "configs/prod_memory_exemplar.env",
+  "tag": "_exemplar_follow",
+  "prompt": "prompt_for_source(icl)",
+  "grader": "IclExactMatch",
+  "agent_map": {
+    "icl_banking77_5900shot_balance": "mab-eval-paper-c90e89a7",
+    "icl_clinic150_7050shot_balance": "mab-eval-paper-53378b33",
+    "icl_nlu_8296shot_balance": "mab-eval-paper-4ed65584",
+    "icl_trec_coarse_6600shot_balance": "mab-eval-paper-933d1c23",
+    "icl_trec_fine_6400shot_balance": "mab-eval-paper-356d5486"
+  },
+  "harness_git_sha": "8307f5b619c3c28b0d212788b0e47302f9885fbd",
+  "nous_git_sha": "1372922ef75aba2b40561a02f5cff76aef1f5e3a",
+  "dataset": {
+    "repo": "ai-hyz/MemoryAgentBench",
+    "file": "data/Test_Time_Learning-00000-of-00001.parquet",
+    "revision": "7ea066982b140a19337e17e60d45d4076e042faf"
+  }
+}
