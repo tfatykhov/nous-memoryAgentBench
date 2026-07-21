@@ -449,3 +449,27 @@ prompt-arm replay with a follow-the-examples instruction. FORECAST SCORECARD
 (0.75-0.85 predicted): MISS LOW for the first time — injection arms convert
 BELOW static sims (reader discretion), the mirror image of substrate arms
 converting ABOVE (loop compounding). Both lessons now on record.
+
+## sh key-miss taxonomy + mh_262k triage — one root cause (2026-07-21)
+
+**sh taxonomy (24 keyed misses, nous_mab_wp):** 20/24 = FACT-SIDE KEY COVERAGE
+— the question matches vocabulary keys fine, but the gold fact is not keyed
+under the asked entity (e.g. "Who founded Church of Scotland?" -> gold fact
+keyed [john knox, edinburgh], no 'church of scotland'). Cap analysis: 0/20
+cap-bound (all facts carry <8 keys) -> the entity_keys_max_per_fact=8 cap is
+INNOCENT; R3.1's value-side extractor simply never emitted the asked entity.
+Remaining: 3 punctuation-variant partials ("Burnley F.C." vs key "burnley fc"
+— probe used raw regex; nous's normalizer likely already catches these), 1
+paraphrase-class gold (catholic/catholicism). NOUS ACTION: extractor recall
+pass (emit ALL named entities per statement), not cap tuning.
+
+**mh_262k triage (40 q, per-question round-2 decomposition via #566's own
+functions):** hit r1+r2 9/40 (=0.23 gate); **unreachable-in-2-keyed-hops
+20/40 (the DOMINANT constraint)**; rank-miss (in 256-candidate pool, below
+K2=8) 5/40; candidate-cap-miss (256 LIMIT excluded gold; key dilution at 16k
+facts) 5/40; r1-empty 1/40. Fan-out guards account for only 10/40 — the wall
+is 2-hop KEY COVERAGE, the same extractor-recall gap as sh COMPOUNDED across
+hops (each hop needs the bridge entity keyed on the bridge fact). CONVERGENT
+NOUS ACTION: the sh fix (value-side extractor recall) is also the mh_262k
+fix, multiplicatively; secondary levers (rank features, per-key candidate
+quotas) worth ~10/40 at most. Free re-sim after any extractor change.

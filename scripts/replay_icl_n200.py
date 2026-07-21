@@ -86,8 +86,19 @@ async def main() -> int:
             print(f"[{inst.source}] already persisted — skipping", flush=True)
             continue
         print(f"[{inst.source}] agent={agent_id[-12:]} questions={len(inst.questions)}", flush=True)
+        prompt_t = prompt_for_source(inst.source)
+        if os.environ.get("MAB_FOLLOW_EXAMPLES") == "1":
+            # Follow-the-examples arm: harness-side stand-in for a nous-side
+            # exemplar-block framing change (F086 v1.1). Targets the measured
+            # override leak: follow-majority cases scored 0.83, overrides 0.41.
+            prompt_t = prompt_t + (
+                "\nIMPORTANT: Your memory surfaces stored labeled examples "
+                "nearest to the input. Answer with the majority label of the "
+                "closest retrieved examples; override it only if it is clearly "
+                "inapplicable. Do not substitute your own classification for "
+                "the stored examples' labels.")
         rows = await replay_agent(settings, config, agent_id, inst,
-                                  prompt_for_source(inst.source), grader_for_source(inst.source))
+                                  prompt_t, grader_for_source(inst.source))
         _persist(RESULTS, rows)
         all_rows.extend(rows)
         c = sum(r.correct for r in rows); e = sum(1 for r in rows if r.error)
